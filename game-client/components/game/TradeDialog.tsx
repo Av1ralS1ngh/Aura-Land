@@ -44,6 +44,8 @@ export default function TradeDialog({ isOpen, onClose, npcName }: TradeDialogPro
   const [showNFTSelection, setShowNFTSelection] = useState(false);
   const [playerNFT, setPlayerNFT] = useState<NFTMetadata | null>(null);
   const [showBattleScene, setShowBattleScene] = useState(false);
+  const [battleComplete, setBattleComplete] = useState(false);
+  const [battleWon, setBattleWon] = useState(false);
   const { tokenIds } = useNFTInventory();
 
   useEffect(() => {
@@ -73,6 +75,8 @@ export default function TradeDialog({ isOpen, onClose, npcName }: TradeDialogPro
       setShowBattleOffer(false);
       setShowBattleScene(false);
       setPlayerNFT(null);
+      setBattleComplete(false);
+      setBattleWon(false);
     }
   }, [isOpen, tokenIds]);
 
@@ -80,16 +84,39 @@ export default function TradeDialog({ isOpen, onClose, npcName }: TradeDialogPro
     setNpcMessage("You think you can defeat me? Prove that and get 30% discount!");
     setShowBattleOffer(true);
     setShowNFTSelection(true);
+    
+    // Store NPC for battle
+    const gameScene = (window as any).gameScene;
+    if (gameScene) {
+      // Find the skeleton NPC
+      const skeletonNPC = gameScene.npcs.getChildren().find((npc: any) => npc.name === 'Skeleton');
+      if (skeletonNPC) {
+        gameScene.battleNPC = skeletonNPC;
+      }
+    }
   };
 
   const handleNFTSelect = (nft: NFTMetadata) => {
+    console.log('Selected NFT:', nft);
     setPlayerNFT(nft);
     setShowNFTSelection(false);
-    setShowBattleScene(true);
+    
+    // Start battle immediately after NFT selection
+    const gameScene = (window as any).gameScene;
+    if (gameScene && gameScene.battleNPC) {
+      // Ensure the game is unpaused for battle
+      gameScene.resumeGame();
+      console.log("Battle NPC", gameScene.battleNPC);
+      gameScene.startNPCBattle(gameScene.battleNPC);
+      setShowBattleScene(true);
+    }
   };
 
   const handleBattleEnd = (playerWon: boolean) => {
+    console.log('Battle ended, player won:', playerWon);
     setShowBattleScene(false);
+    setBattleComplete(true);
+    setBattleWon(playerWon);
     if (playerWon) {
       setNpcMessage("Impressive! You've earned the discount.");
     } else {
@@ -136,7 +163,7 @@ export default function TradeDialog({ isOpen, onClose, npcName }: TradeDialogPro
                       ))}
                     </div>
                     <p className="text-yellow-400 text-lg mb-4">
-                      {showBattleOffer ? (
+                      {battleWon ? (
                         <span className="flex items-center gap-2">
                           <span className="line-through text-gray-500">{nftPrice} CoA</span>
                           <span>{discountedPrice} CoA</span>
@@ -147,16 +174,17 @@ export default function TradeDialog({ isOpen, onClose, npcName }: TradeDialogPro
                       )}
                     </p>
                     <div className="space-x-4">
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          // TODO: Implement buy functionality
-                          console.log(`Buying NFT #${selectedNFT}`);
-                        }}
-                      >
-                        Buy NFT
-                      </Button>
-                      {!showBattleOffer && (
+                      {battleComplete ? (
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            // TODO: Implement buy functionality
+                            console.log(`Buying NFT #${selectedNFT}`);
+                          }}
+                        >
+                          Buy NFT {battleWon ? 'with Discount' : ''}
+                        </Button>
+                      ) : !showBattleOffer && (
                         <Button
                           variant="outline"
                           className="bg-red-600 hover:bg-red-700"
