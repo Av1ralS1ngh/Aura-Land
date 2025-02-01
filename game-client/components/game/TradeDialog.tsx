@@ -10,9 +10,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { useNFTInventory } from '@/hooks/useNFTInventory';
 import { useBlockchain } from '@/lib/context/BlockchainContext';
+import { useLockedNFT } from '@/lib/context/LockedNFTContext';
+import { useToast } from '@/hooks/use-toast';
 import NFTSelectionDialog from './NFTSelectionDialog';
 import BattleScene from './BattleScene';
-import { useToast } from '@/hooks/use-toast';
 
 interface TradeDialogProps {
   isOpen: boolean;
@@ -39,6 +40,7 @@ const npcDialogs = [
 
 export default function TradeDialog({ isOpen, onClose, npcName }: TradeDialogProps) {
   const { mintCustomNFT } = useBlockchain();
+  const { lockNFT } = useLockedNFT();
   const { toast } = useToast();
   const [selectedNFT, setSelectedNFT] = useState<number | null>(null);
   const [nftPrice, setNftPrice] = useState<number | null>(null);
@@ -130,6 +132,24 @@ export default function TradeDialog({ isOpen, onClose, npcName }: TradeDialogPro
     }
   };
 
+  const handleBattleComplete = (won: boolean) => {
+    setBattleComplete(true);
+    setBattleWon(won);
+    setShowBattleScene(false);
+  };
+
+  const handleContinue = () => {
+    if (selectedNFT) {
+      lockNFT(selectedNFT);
+      toast({
+        title: battleWon ? "Battle Won" : "Battle Lost",
+        description: "Your NFT is locked for 30 minutes!",
+        variant: battleWon ? "default" : "destructive",
+      });
+      onClose();
+    }
+  };
+
   const handleBuyNFT = async () => {
     try {
       if (!selectedNFT || nftPrice === null) {
@@ -148,6 +168,8 @@ export default function TradeDialog({ isOpen, onClose, npcName }: TradeDialogPro
         variant: "default",
       });
 
+      // Lock NFT after purchase
+      lockNFT(selectedNFT);
       onClose();
     } catch (error) {
       console.error("Error buying NFT:", error);
@@ -163,7 +185,7 @@ export default function TradeDialog({ isOpen, onClose, npcName }: TradeDialogPro
 
   return (
     <>
-      <Dialog open={isOpen && !showBattleScene} onOpenChange={onClose}>
+      <Dialog open={isOpen && !showBattleScene} onOpenChange={() => onClose()}>
         <DialogContent className="max-w-2xl bg-gray-900 border-gray-800">
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold">Trading with {npcName}</DialogTitle>
@@ -209,13 +231,21 @@ export default function TradeDialog({ isOpen, onClose, npcName }: TradeDialogPro
                     </p>
                     <div className="space-x-4">
                       {battleComplete ? (
-                        <Button
-                          variant="outline"
-                          onClick={handleBuyNFT}
-                          disabled={!selectedNFT}
-                        >
-                          Buy NFT {battleWon ? 'with Discount' : ''}
-                        </Button>
+                        <>
+                          <Button
+                            variant="outline"
+                            onClick={handleBuyNFT}
+                            disabled={!selectedNFT}
+                          >
+                            Buy NFT {battleWon ? 'with Discount' : ''}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={handleContinue}
+                          >
+                            Continue
+                          </Button>
+                        </>
                       ) : !showBattleOffer && (
                         <Button
                           variant="outline"
