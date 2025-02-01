@@ -3,48 +3,101 @@
 import React, { createContext, useContext, useCallback } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import Web3 from 'web3';
-import { CONTRACT_ADDRESS, CONTRACT_ABI } from '../contracts/contract-config';
+import { CONTRACT_ADDRESS_MINTER, CONTRACT_ABI_MINTER, CONTRACT_ABI_NFT_MINTER, CONTRACT_ADDRESS_NFT_MINTER } from '../contracts/contract-config';
 
 interface BlockchainContextType {
-  mintCharacterNFTs: () => Promise<string>;
-  isLoading: boolean;
+  mintTokens: (getSigner: () => Promise<any>) => Promise<string>;
+  mintNFTs: (getSigner: () => Promise<any>) => Promise<string>;
+  isLoadingTokens: boolean;
+  isLoadingNFTs: boolean;
 }
 
 const BlockchainContext = createContext<BlockchainContextType | undefined>(undefined);
 
 export function BlockchainProvider({ children }: { children: React.ReactNode }) {
-  const { user, sendTransaction } = usePrivy();
-  const [isLoading, setIsLoading] = React.useState(false);
+  const { user } = usePrivy();
+  const [isLoadingTokens, setIsLoadingTokens] = React.useState(false);
+  const [isLoadingNFTs, setIsLoadingNFTs] = React.useState(false);
 
-  const mintCharacterNFTs = useCallback(async () => {
+  const mintTokens = useCallback(async (getSigner: () => Promise<any>) => {
     if (!user?.wallet?.address) {
       throw new Error('Wallet not connected');
     }
 
-    setIsLoading(true);
     try {
-      const web3 = new Web3(window.ethereum);
-      const contract = new web3.eth.Contract(CONTRACT_ABI, CONTRACT_ADDRESS);
+      setIsLoadingTokens(true);
+      const web3 = await getSigner();
       
-      const data = contract.methods.mintNFTs().encodeABI();
-      
-      const txHash = await sendTransaction({
-        to: CONTRACT_ADDRESS,
-        data,
-      });
+      // Create contract instance
+      const contract = new web3.eth.Contract(
+        CONTRACT_ABI_MINTER,
+        CONTRACT_ADDRESS_MINTER
+      );
 
-      return txHash;
+      // Estimate gas for mint
+      const gasEstimate = await contract.methods.mint(user.wallet.address, "5000000000000000000000")
+        .estimateGas({ from: user.wallet.address });
+
+      // Add 20% buffer to gas estimate
+      const gasWithBuffer = BigInt(gasEstimate) + 
+        (BigInt(gasEstimate) * BigInt(20) / BigInt(100));
+
+      // Call mint function with 5000 tokens (with 18 decimals)
+      const tx = await contract.methods.mint(user.wallet.address, "1000000000000000000")
+        .send({ 
+          from: user.wallet.address,
+          gas: gasWithBuffer.toString()
+        });
+
+      return tx.transactionHash;
     } catch (error) {
-      console.error('Error minting NFTs:', error);
+      console.error('Error in mintTokens:', error);
       throw error;
     } finally {
-      setIsLoading(false);
+      setIsLoadingTokens(false);
     }
-  }, [user, sendTransaction]);
+  }, [user?.wallet?.address]);
+
+  const mintNFTs = useCallback(async (getSigner: () => Promise<any>) => {
+    if (!user?.wallet?.address) {
+      throw new Error('Wallet not connected');
+    }
+
+    try {
+      setIsLoadingNFTs(true);
+      const web3 = await getSigner();
+      
+      const contract = new web3.eth.Contract(
+        CONTRACT_ABI_NFT_MINTER,
+        CONTRACT_ADDRESS_NFT_MINTER
+      );
+
+      const gasEstimate = await contract.methods.mint(5)
+        .estimateGas({ from: user.wallet.address });
+
+      const gasWithBuffer = BigInt(gasEstimate) + 
+        (BigInt(gasEstimate) * BigInt(20) / BigInt(100));
+
+      const tx = await contract.methods.mint(5)
+        .send({ 
+          from: user.wallet.address,
+          gas: gasWithBuffer.toString()
+        });
+
+      return tx.transactionHash;
+    } catch (error) {
+      console.error('Error in mintNFTs:', error);
+      throw error;
+    } finally {
+      setIsLoadingNFTs(false);
+    }
+  }, [user?.wallet?.address]);
 
   const value = {
-    mintCharacterNFTs,
-    isLoading,
+    mintTokens,
+    mintNFTs,
+    isLoadingTokens,
+    isLoadingNFTs
   };
 
   return (

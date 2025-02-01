@@ -3,6 +3,8 @@
 import React from 'react';
 import { Dialog } from '@headlessui/react';
 import { useBlockchain } from '@/lib/context/BlockchainContext';
+import { usePrivyWallet } from '@/hooks/usePrivyWallet';
+import { useToast } from '@/hooks/use-toast';
 
 interface Character {
   id: string;
@@ -50,21 +52,58 @@ interface Props {
 }
 
 export default function CharacterSelectionModal({ isOpen, onClose }: Props) {
-  const { mintCharacterNFTs, isLoading } = useBlockchain();
+  const { mintTokens, mintNFTs, isLoadingTokens, isLoadingNFTs } = useBlockchain();
+  const { signer } = usePrivyWallet();
+  const { toast } = useToast();
   const [selectedCharacter, setSelectedCharacter] = React.useState<string>('');
   const [cityName, setCityName] = React.useState<string>('');
   const [step, setStep] = React.useState<'character' | 'city'>('character');
 
   const handleConfirm = async () => {
     if (!cityName.trim()) {
-      alert('Please enter a city name');
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Please enter a city name",
+      });
       return;
     }
+
     try {
-      await mintCharacterNFTs();
+      // First mint tokens
+      toast({
+        title: "Minting Tokens",
+        description: "Please wait while we mint your tokens...",
+      });
+      
+      const tokenTx = await mintTokens(signer);
+      
+      toast({
+        title: "Tokens Minted!",
+        description: "Successfully minted 5000 AURA tokens.",
+      });
+
+      // Then mint NFTs
+      toast({
+        title: "Minting NFTs",
+        description: "Please wait while we mint your NFTs...",
+      });
+      
+      const nftTx = await mintNFTs(signer);
+      
+      toast({
+        title: "NFTs Minted!",
+        description: "Successfully minted 5 character NFTs.",
+      });
+
       onClose();
     } catch (error) {
       console.error('Error during character creation:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to mint. Please try again.",
+      });
     }
   };
 
@@ -119,15 +158,15 @@ export default function CharacterSelectionModal({ isOpen, onClose }: Props) {
           <div className="flex justify-between">
             {step === 'city' && (
               <button
-                className="px-4 py-2 text-blue-600"
                 onClick={() => setStep('character')}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800"
               >
                 Back
               </button>
             )}
             <button
               className="px-4 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50 hover:bg-blue-700 transition-colors"
-              disabled={isLoading || (step === 'character' ? !selectedCharacter : !cityName.trim())}
+              disabled={isLoadingTokens || isLoadingNFTs || (step === 'character' ? !selectedCharacter : !cityName.trim())}
               onClick={() => {
                 if (step === 'character') {
                   setStep('city');
@@ -136,11 +175,11 @@ export default function CharacterSelectionModal({ isOpen, onClose }: Props) {
                 }
               }}
             >
-              {isLoading
-                ? 'Creating...'
-                : step === 'character'
-                ? 'Next'
-                : 'Create Character'}
+              {isLoadingTokens || isLoadingNFTs 
+                ? 'Processing...' 
+                : step === 'character' 
+                  ? 'Next' 
+                  : 'Start Game'}
             </button>
           </div>
         </Dialog.Panel>
