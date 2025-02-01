@@ -10,6 +10,7 @@ import GameBackground from '@/components/game/GameBackground';
 import GameWallet from '@/components/wallet/GameWallet';
 import GameInventory from '@/components/inventory/GameInventory';
 import { BlockchainProvider } from '@/lib/context/BlockchainContext';
+import { motion } from 'framer-motion';
 
 export default function GamePage() {
   const [isMobile, setIsMobile] = useState(false);
@@ -17,6 +18,7 @@ export default function GamePage() {
   const [isGamePaused, setIsGamePaused] = useState(false);
   const [showTradeDialog, setShowTradeDialog] = useState(false);
   const [tradingNPC, setTradingNPC] = useState('');
+  const [isBattling, setIsBattling] = useState(false);
   const { ready, authenticated } = usePrivy();
 
   useEffect(() => {
@@ -32,6 +34,18 @@ export default function GamePage() {
 
     // Cleanup
     return () => window.removeEventListener('resize', checkDevice);
+  }, []);
+
+  useEffect(() => {
+    // Listen for battle state changes
+    const handleBattleState = (event: CustomEvent) => {
+      setIsBattling(event.detail.isBattling);
+    };
+
+    window.addEventListener('battleStateChange' as any, handleBattleState);
+    return () => {
+      window.removeEventListener('battleStateChange' as any, handleBattleState);
+    };
   }, []);
 
   const handleNFTClick = () => {
@@ -54,27 +68,62 @@ export default function GamePage() {
 
         {/* Main content */}
         <div className="relative z-10 flex w-full h-full">
-          {/* Game area */}
-          <div className="flex-grow h-full">
-            {/* <CharacterSelectionModal 
-              isOpen={showCharacterModal} 
-              onClose={() => setShowCharacterModal(false)} 
-            /> */}
-            {/* {!showCharacterModal && ( */}
-            <GameCanvas 
-              isPaused={isGamePaused} 
-              onPause={() => setIsGamePaused(true)}
-              onResume={() => setIsGamePaused(false)}
-              onOpenTrade={(npcName: string) => {
-                setTradingNPC(npcName);
-                setShowTradeDialog(true);
+          {/* Game Container with centering wrapper */}
+          <motion.div 
+            className="relative"
+            animate={{ 
+              width: isBattling ? '100%' : '70%',
+            }}
+            transition={{ 
+              duration: 0.5, 
+              ease: "easeInOut" 
+            }}
+          >
+            {/* Game Canvas Container */}
+            <motion.div 
+              className="h-full relative"
+              animate={{ 
+                width: isBattling ? '100%' : '100%',
+                left: isBattling ? '50%' : '0%',
+                x: isBattling ? '-50%' : '0%',
               }}
-            />
-            {/* )} */}
-          </div>
+              transition={{ 
+                duration: 0.5, 
+                ease: "easeInOut",
+              }}
+            >
+              <div className="h-full" style={{ 
+                width: isBattling ? '100%' : '100%', 
+                margin: isBattling ? '0 auto' : '0',
+                justifyContent: isBattling ? 'center' : 'flex-start',
+                alignSelf: isBattling ? 'center' : 'flex-start',
+              }}>
+                <GameCanvas 
+                  isPaused={isGamePaused} 
+                  onPause={() => setIsGamePaused(true)}
+                  onResume={() => setIsGamePaused(false)}
+                  onOpenTrade={(npcName: string) => {
+                    setTradingNPC(npcName);
+                    setShowTradeDialog(true);
+                  }}
+                />
+              </div>  
+            </motion.div>
+          </motion.div>
 
           {/* Sidebar */}
-          <div className="w-[30%] min-w-[300px] h-full bg-black bg-opacity-50 flex flex-col">
+          <motion.div 
+            className="w-[30%] min-w-[300px] h-full bg-black bg-opacity-50 flex flex-col"
+            animate={{ 
+              x: isBattling ? '100%' : 0,
+              opacity: isBattling ? 0 : 1
+            }}
+            transition={{ 
+              duration: 0.5, 
+              ease: "easeInOut",
+              opacity: { duration: 0.3 }
+            }}
+          >
             {/* Inventory section */}
             <div className="flex-1 p-4 min-h-0 flex flex-col">
               <h2 className="text-xl font-bold mb-4 text-white">Inventory</h2>
@@ -87,18 +136,18 @@ export default function GamePage() {
             <div className="p-4">
               <GameWallet />
             </div>
-          </div>
-
-          {/* Trade Dialog */}
-          <TradeDialog
-            isOpen={showTradeDialog}
-            onClose={() => {
-              setShowTradeDialog(false);
-              setIsGamePaused(false);
-            }}
-            npcName={tradingNPC}
-          />
+          </motion.div>
         </div>
+
+        {/* Trade Dialog */}
+        <TradeDialog
+          isOpen={showTradeDialog}
+          onClose={() => {
+            setShowTradeDialog(false);
+            setIsGamePaused(false);
+          }}
+          npcName={tradingNPC}
+        />
       </div>
     </BlockchainProvider>
   );
