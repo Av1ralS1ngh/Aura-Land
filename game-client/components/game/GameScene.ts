@@ -931,13 +931,18 @@ export class GameScene extends Phaser.Scene {
   }
 
   private startNPCBattle(npc: Phaser.Physics.Arcade.Sprite) {
-    console.log('Starting NPC battle',npc);
+    console.log('Starting NPC battle', npc);
     if (!npc) return; 
     
     this.isBattling = true;
     this.battleNPC = npc;
     this.playerHealth = 100;
     this.npcHealth = 100;
+
+    // Notify UI about battle state
+    window.dispatchEvent(new CustomEvent('battleStateChange', {
+      detail: { isBattling: true }
+    }));
     
     // Freeze all enemies
     this.enemies.getChildren().forEach((enemy: any) => {
@@ -1080,6 +1085,11 @@ export class GameScene extends Phaser.Scene {
       this.battleNPC.play('skeleton-idle');
     }
     this.battleNPC = null;
+
+    // Notify UI about battle state
+    window.dispatchEvent(new CustomEvent('battleStateChange', {
+      detail: { isBattling: false }
+    }));
 
     // Cleanup battle elements
     if (this.healthBar) {

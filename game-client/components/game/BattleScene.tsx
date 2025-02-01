@@ -127,9 +127,12 @@ export default function BattleScene({ isVisible, playerNFT, npcNFT, onBattleEnd 
           <div ref={containerRef} className="absolute inset-0" />
 
           {/* Battle UI */}
-          <div className="absolute top-4 left-4 right-4 flex justify-between items-start">
+          <div className="absolute top-4 left-4 right-4 flex justify-between items-start px-[20%]">
             {/* Player Info */}
-            <div className="bg-black bg-opacity-50 p-4 rounded-lg">
+            <div className="bg-black bg-opacity-50 p-4 rounded-lg relative">
+              <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-blue-500 text-white px-3 py-1 rounded-full text-sm font-bold">
+                YOU
+              </div>
               <div className="w-32 h-32 relative mb-2">
                 <Image
                   src={playerNFT.image}
@@ -151,7 +154,10 @@ export default function BattleScene({ isVisible, playerNFT, npcNFT, onBattleEnd 
             )}
 
             {/* NPC Info */}
-            <div className="bg-black bg-opacity-50 p-4 rounded-lg">
+            <div className="bg-black bg-opacity-50 p-4 rounded-lg relative">
+              <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-bold">
+                ENEMY
+              </div>
               <div className="w-32 h-32 relative mb-2">
                 <Image
                   src={npcNFT.image}
