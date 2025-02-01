@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { ConstantColorFactor } from 'three';
 
 export class GameScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite;
@@ -29,10 +30,17 @@ export class GameScene extends Phaser.Scene {
   private isGameOver: boolean = false;
   private isPaused: boolean = false;
   private isBattling: boolean = false;
-  private battleNPC: any = null;
+  private battleNPC: Phaser.Physics.Arcade.Sprite | null = null;
+  private pauseOverlay!: Phaser.GameObjects.Graphics;
+  private healthBarNPC!: Phaser.GameObjects.Graphics;
+  private healthBarPlayer!: Phaser.GameObjects.Graphics;
+  private healthBars: { [key: string]: Phaser.GameObjects.Graphics } = {};
+  private npcHealth: number = 100;
 
   constructor() {
     super({ key: 'GameScene' });
+    // Expose the game scene instance globally
+    (window as any).gameScene = this;
   }
 
   preload() {
@@ -102,14 +110,12 @@ export class GameScene extends Phaser.Scene {
     // Setup controls
     this.setupControls();
 
+    // Create initial enemies and NPCs
+    this.createEnemies(10); 
+    this.createNPCs();
+
     // Setup collisions
     this.setupCollisions();
-
-    // Create initial enemies
-    this.createEnemies(5);
-
-    // Create NPCs
-    this.createNPCs();
 
     // Setup UI
     this.showLabels();
@@ -654,12 +660,24 @@ export class GameScene extends Phaser.Scene {
   }
 
   private handleEnemyMovement() {
-    this.enemies.children.iterate((enemy: any) => {
-      if (enemy && enemy.active) {
-        const angle = Phaser.Math.Angle.Between(enemy.x, enemy.y, this.player.x, this.player.y);
-        const speed = enemy.speed || 100;
-        enemy.setVelocityX(Math.cos(angle) * speed);
-        enemy.setVelocityY(Math.sin(angle) * speed);
+    if (this.isPaused) return;
+    
+    this.enemies.getChildren().forEach((enemy: any) => {
+      if (enemy.nextMoveTime === undefined || this.time.now > enemy.nextMoveTime) {
+        const distance = Phaser.Math.Distance.Between(
+          this.player.x,
+          this.player.y,
+          enemy.x,
+          enemy.y
+        );
+        
+        if (distance < 300) {
+          this.physics.moveTo(enemy, this.player.x, this.player.y, enemy.speed || 60);
+        } else {
+          enemy.setVelocity(0);
+          // Set next random movement
+          enemy.nextMoveTime = this.time.now + Phaser.Math.Between(1000, 3000);
+        }
       }
     });
   }
@@ -913,40 +931,173 @@ export class GameScene extends Phaser.Scene {
   }
 
   private startNPCBattle(npc: Phaser.Physics.Arcade.Sprite) {
+    console.log('Starting NPC battle',npc);
+    if (!npc) return; 
+    
     this.isBattling = true;
     this.battleNPC = npc;
+    this.playerHealth = 100;
+    this.npcHealth = 100;
     
     // Freeze all enemies
     this.enemies.getChildren().forEach((enemy: any) => {
       enemy.setVelocity(0, 0);
     });
 
-    // Make NPC hold sword (change animation)
+    // Create health bars
+    this.healthBar = this.add.graphics();
+    this.npcHealthBar = this.add.graphics();
+    this.updateHealthBars();
+
+    // Make NPC hold sword and use battle animation
     const animKey = 'skeleton-battle';
     if (!this.anims.exists(animKey)) {
       this.anims.create({
         key: animKey,
-        frames: this.anims.generateFrameNumbers('characters', { frames: [27, 28, 29] }), // Use sword-wielding frames
-        frameRate: 8,
+        frames: this.anims.generateFrameNumbers('characters', { frames: [27, 28, 29] }),
+        frameRate: 10,
         repeat: -1
       });
     }
     npc.play(animKey);
+
+    // Setup battle input handlers
+    this.input.keyboard.on('keydown-SPACE', this.handlePlayerAttack, this);
+    this.input.keyboard.on('keydown-SHIFT', this.handlePlayerSpell, this);
+
+    // Start NPC AI
+    this.time.addEvent({
+      delay: 2000,
+      callback: this.handleNPCAttack,
+      callbackScope: this,
+      loop: true
+    });
+  }
+
+  private handlePlayerAttack() {
+    if (!this.isBattling || !this.battleNPC) return;
+
+    // Calculate distance to NPC
+    const distance = Phaser.Math.Distance.Between(
+      this.player.x,
+      this.player.y,
+      this.battleNPC.x,
+      this.battleNPC.y
+    );
+
+    if (distance < 100) { // Attack range
+      const damage = Phaser.Math.Between(10, 20);
+      this.npcHealth = Math.max(0, this.npcHealth - damage);
+      this.showDamageNumber(damage, this.battleNPC.x, this.battleNPC.y);
+      this.updateHealthBars();
+    }
+  }
+
+  private handlePlayerSpell() {
+    if (!this.isBattling || !this.battleNPC) return;
+
+    const damage = Phaser.Math.Between(15, 25);
+    this.npcHealth = Math.max(0, this.npcHealth - damage);
+    this.showDamageNumber(damage, this.battleNPC.x, this.battleNPC.y, 0x00ff00);
+    this.updateHealthBars();
+  }
+
+  private handleNPCAttack() {
+    if (!this.isBattling || !this.battleNPC) return;
+
+    // Move towards player
+    const angle = Phaser.Math.Angle.Between(
+      this.battleNPC.x,
+      this.battleNPC.y,
+      this.player.x,
+      this.player.y
+    );
+
+    this.physics.velocityFromRotation(angle, 200, this.battleNPC.body.velocity);
+
+    // Attack if close enough
+    const distance = Phaser.Math.Distance.Between(
+      this.player.x,
+      this.player.y,
+      this.battleNPC.x,
+      this.battleNPC.y
+    );
+
+    if (distance < 100) {
+      const damage = Phaser.Math.Between(8, 15);
+      this.playerHealth = Math.max(0, this.playerHealth - damage);
+      this.showDamageNumber(damage, this.player.x, this.player.y, 0xff0000);
+      this.updateHealthBars();
+    }
+  }
+
+  private showDamageNumber(damage: number, x: number, y: number, color: number = 0xffffff) {
+    if (this.damageText) {
+      this.damageText.destroy();
+    }
+
+    this.damageText = this.add.text(x, y - 20, `-${damage}`, {
+      fontSize: '24px',
+      color: `#${color.toString(16)}`
+    });
+
+    this.tweens.add({
+      targets: this.damageText,
+      y: y - 50,
+      alpha: 0,
+      duration: 800,
+      onComplete: () => {
+        if (this.damageText) {
+          this.damageText.destroy();
+          this.damageText = null;
+        }
+      }
+    });
+  }
+
+  private updateHealthBars() {
+    if (!this.healthBar || !this.npcHealthBar || !this.player || !this.battleNPC) return;
+
+    // Player health bar
+    this.healthBar.clear();
+    this.healthBar.fillStyle(0x00ff00);
+    this.healthBar.fillRect(this.player.x - 25, this.player.y - 40, 50 * (this.playerHealth / 100), 5);
+    this.healthBar.lineStyle(1, 0xffffff);
+    this.healthBar.strokeRect(this.player.x - 25, this.player.y - 40, 50, 5);
+
+    // NPC health bar
+    this.npcHealthBar.clear();
+    this.npcHealthBar.fillStyle(0xff0000);
+    this.npcHealthBar.fillRect(this.battleNPC.x - 25, this.battleNPC.y - 40, 50 * (this.npcHealth / 100), 5);
+    this.npcHealthBar.lineStyle(1, 0xffffff);
+    this.npcHealthBar.strokeRect(this.battleNPC.x - 25, this.battleNPC.y - 40, 50, 5);
   }
 
   private endNPCBattle() {
     this.isBattling = false;
-    
-    // Unfreeze enemies
-    this.enemies.getChildren().forEach((enemy: any) => {
-      this.startEnemyMovement(enemy);
-    });
-
-    // Reset NPC animation
     if (this.battleNPC) {
+      this.battleNPC.setVelocity(0, 0);
       this.battleNPC.play('skeleton-idle');
-      this.battleNPC = null;
     }
+    this.battleNPC = null;
+
+    // Cleanup battle elements
+    if (this.healthBar) {
+      this.healthBar.destroy();
+      this.healthBar = null;
+    }
+    if (this.npcHealthBar) {
+      this.npcHealthBar.destroy();
+      this.npcHealthBar = null;
+    }
+    if (this.damageText) {
+      this.damageText.destroy();
+      this.damageText = null;
+    }
+
+    // Remove battle input handlers
+    this.input.keyboard.off('keydown-SPACE', this.handlePlayerAttack, this);
+    this.input.keyboard.off('keydown-SHIFT', this.handlePlayerSpell, this);
   }
 
   private deathHandler(target: any) {

@@ -11,15 +11,17 @@ interface BattleSceneProps {
 }
 
 export default function BattleScene({ isVisible, playerNFT, npcNFT, onBattleEnd }: BattleSceneProps) {
+  console.log("BattleScene", isVisible);
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const battleCheckInterval = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!containerRef.current || !isVisible) return;
 
-    // Setup Three.js scene
+    // Setup Three.js scene for visual effects
     const scene = new THREE.Scene();
     sceneRef.current = scene;
 
@@ -76,107 +78,75 @@ export default function BattleScene({ isVisible, playerNFT, npcNFT, onBattleEnd 
 
     animate();
 
+    // Start checking battle status
+    battleCheckInterval.current = setInterval(() => {
+      const gameScene = (window as any).gameScene;
+      if (gameScene && gameScene.isBattling) {
+        // Check if either player or NPC is dead
+        if (gameScene.playerHealth <= 0 || gameScene.npcHealth <= 0) {
+          const playerWon = gameScene.npcHealth <= 0;
+          clearInterval(battleCheckInterval.current!);
+          gameScene.endNPCBattle();
+          onBattleEnd(playerWon);
+        }
+      }
+    }, 100);
+
     return () => {
       if (rendererRef.current && containerRef.current) {
         containerRef.current.removeChild(rendererRef.current.domElement);
         rendererRef.current.dispose();
       }
+
+      // Clear battle check interval
+      if (battleCheckInterval.current) {
+        clearInterval(battleCheckInterval.current);
+      }
     };
   }, [isVisible]);
-
-  const calculateWinner = () => {
-    const playerScore = calculateNFTScore(playerNFT);
-    const npcScore = calculateNFTScore(npcNFT);
-    return playerScore >= npcScore;
-  };
-
-  const calculateNFTScore = (nft: any) => {
-    let score = 0;
-    nft.attributes.forEach((attr: any) => {
-      if (attr.trait_type.toLowerCase().includes('rarity')) {
-        score += parseInt(attr.value) * 2; // Rarity counts double
-      } else if (
-        attr.trait_type.toLowerCase().includes('strength') ||
-        attr.trait_type.toLowerCase().includes('power') ||
-        attr.trait_type.toLowerCase().includes('skill')
-      ) {
-        score += parseInt(attr.value);
-      }
-    });
-    return score;
-  };
 
   return (
     <AnimatePresence>
       {isVisible && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black bg-opacity-80" />
-          
-          {/* Three.js container */}
+        <div className="fixed inset-0 z-50">
+          {/* Three.js container for effects */}
           <div ref={containerRef} className="absolute inset-0" />
 
-          {/* Battle content */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            className="relative z-10 flex items-center justify-center gap-8"
-          >
-            {/* Player NFT */}
-            <motion.div
-              initial={{ x: -100, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              className="w-64 h-64 relative"
-            >
-              <Image
-                src={playerNFT.image}
-                alt={playerNFT.name}
-                fill
-                className="rounded-lg object-cover"
-              />
-            </motion.div>
-
-            {/* VS Text */}
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              className="text-6xl font-bold text-yellow-500 px-8"
-            >
-              VS
-            </motion.div>
-
-            {/* NPC NFT */}
-            <motion.div
-              initial={{ x: 100, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              className="w-64 h-64 relative"
-            >
-              <Image
-                src={npcNFT.image}
-                alt={npcNFT.name}
-                fill
-                className="rounded-lg object-cover"
-              />
-            </motion.div>
-          </motion.div>
-
-          {/* Battle result */}
-          <motion.div
-            initial={{ y: 50, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 2 }}
-            className="absolute bottom-20 left-0 right-0 text-center"
-          >
-            <div className="text-4xl font-bold text-white mb-4">
-              {calculateWinner() ? "You Won!" : "You Lost!"}
+          {/* Battle UI */}
+          <div className="absolute top-4 left-4 right-4 flex justify-between items-start">
+            {/* Player Info */}
+            <div className="bg-black bg-opacity-50 p-4 rounded-lg">
+              <div className="w-32 h-32 relative mb-2">
+                <Image
+                  src={playerNFT.image}
+                  alt={playerNFT.name}
+                  fill
+                  className="rounded-lg object-cover"
+                />
+              </div>
+              <div className="text-white text-center">{playerNFT.name}</div>
             </div>
-            <button
-              onClick={() => onBattleEnd(calculateWinner())}
-              className="px-6 py-3 bg-yellow-500 text-black rounded-lg font-bold hover:bg-yellow-400"
-            >
-              Continue
-            </button>
-          </motion.div>
+
+            {/* Battle Instructions */}
+            <div className="bg-black bg-opacity-50 p-4 rounded-lg text-white text-center">
+              <p className="text-xl font-bold mb-2">Battle Controls</p>
+              <p>SPACE - Sword Attack</p>
+              <p>SHIFT - Cast Spell</p>
+            </div>
+
+            {/* NPC Info */}
+            <div className="bg-black bg-opacity-50 p-4 rounded-lg">
+              <div className="w-32 h-32 relative mb-2">
+                <Image
+                  src={npcNFT.image}
+                  alt={npcNFT.name}
+                  fill
+                  className="rounded-lg object-cover"
+                />
+              </div>
+              <div className="text-white text-center">{npcNFT.name}</div>
+            </div>
+          </div>
         </div>
       )}
     </AnimatePresence>
