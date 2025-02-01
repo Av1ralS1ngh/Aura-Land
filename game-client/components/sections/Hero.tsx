@@ -5,9 +5,10 @@ import { usePrivyAuth } from "@/hooks/usePrivyAuth";
 import { useRouter } from "next/navigation";
 import { FC } from 'react';
 import { motion } from 'framer-motion';
+import { usePrivyWallet } from "@/hooks/usePrivyWallet";
 
 const Hero: FC = () => {
-  const { login, isAuthenticated } = usePrivyAuth();
+  const { connect: login, authenticated, logout } = usePrivyWallet();
   const router = useRouter();
 
   const handleGameLaunch = () => {
@@ -53,7 +54,7 @@ const Hero: FC = () => {
             transition={{ duration: 0.5, delay: 0.6 }}
             className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-8"
           >
-            {!isAuthenticated ? (
+            {!authenticated ? (
               <Button
                 onClick={login}
                 className="bg-gradient-to-r from-[#d4a373] to-[#ccd5ae] text-[#1a1510] px-8 py-3 rounded-lg hover:opacity-90 transition-all hover:scale-105"

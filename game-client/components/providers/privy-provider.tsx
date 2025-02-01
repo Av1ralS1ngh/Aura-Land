@@ -41,9 +41,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
         loginMethods: ['email', 'wallet', 'google'],
         defaultChain: baseSepolia,
         supportedChains: [baseSepolia],
-        embeddedWallets: {
-          createOnLogin: 'users-without-wallets', // defaults to 'off'
-        },
       }}
     >
       {children}
