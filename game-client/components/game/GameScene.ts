@@ -235,22 +235,20 @@ export class GameScene extends Phaser.Scene {
     spell.isSpell = true;
     spell.setVelocity(velocity.x, velocity.y);
 
-    // Create particle manager and emitter for trail effect
-    const manager = this.add.particles('spell-particle');
-    const emitter = manager.createEmitter({
-      follow: spell,
-      quantity: 1,
-      frequency: 50,
-      scale: { start: 0.5, end: 0 },
-      speed: { min: -50, max: 50 },
+    // Create particle effect
+    const particles = this.add.particles(spell.x, spell.y, 'spell-particle', {
       lifespan: 500,
+      speed: { min: -50, max: 50 },
+      scale: { start: 0.5, end: 0 },
+      alpha: { start: 0.6, end: 0 },
       blendMode: 'ADD',
-      alpha: { start: 0.6, end: 0 }
+      emitting: true,
+      follow: spell
     });
 
     // Cleanup when spell is destroyed
     spell.on('destroy', () => {
-      manager.destroy();
+      particles.destroy();
     });
 
     spell.lifespan = 1000;
@@ -264,28 +262,30 @@ export class GameScene extends Phaser.Scene {
       this.handleSpellHit(spell, boss);
     });
     this.physics.add.collider(spell, this.obstacles, (spell) => {
-      manager.destroy();
+      particles.destroy();
       spell.destroy();
     });
   }
 
   private handleSpellHit(spell: any, target: any) {
     // Create hit effect
-    const manager = this.add.particles('spell-particle');
-    const emitter = manager.createEmitter({
-      x: target.x,
-      y: target.y,
-      quantity: 15,
+    const particles = this.add.particles(target.x, target.y, 'spell-particle', {
+      lifespan: 300,
       speed: { min: -100, max: 100 },
       scale: { start: 0.5, end: 0 },
-      lifespan: 300,
+      alpha: { start: 0.8, end: 0 },
       blendMode: 'ADD',
-      alpha: { start: 0.8, end: 0 }
+      emitting: false,
+      quantity: 15,
+      gravityY: 0
     });
+
+    // Emit particles once
+    particles.explode(15);
 
     // Set timeout to destroy particles
     this.time.delayedCall(300, () => {
-      manager.destroy();
+      particles.destroy();
     });
 
     // Apply damage and show number
@@ -639,21 +639,23 @@ export class GameScene extends Phaser.Scene {
     this.xpToNext *= 1.5;
     
     // Level up effect
-    const manager = this.add.particles('spell-particle');
-    const emitter = manager.createEmitter({
-      x: this.player.x,
-      y: this.player.y,
-      quantity: 20,
+    const particles = this.add.particles(this.player.x, this.player.y, 'spell-particle', {
+      lifespan: 1000,
       speed: { min: -150, max: 150 },
       scale: { start: 1, end: 0 },
-      lifespan: 1000,
+      alpha: { start: 1, end: 0 },
       blendMode: 'ADD',
-      alpha: { start: 1, end: 0 }
+      emitting: false,
+      quantity: 20,
+      gravityY: 0
     });
+
+    // Emit particles once
+    particles.explode(20);
 
     // Cleanup after effect
     this.time.delayedCall(1000, () => {
-      manager.destroy();
+      particles.destroy();
     });
   }
 
