@@ -361,7 +361,7 @@
 
 ## NFTminter address
 
-0xfBcDF84e708CEBD5B695F791207B4C0F81cf9a87
+0x66175BFf37188AbF15F567c1232E298354F5B86e
 
 ## NFTminter abi
 
@@ -614,7 +614,20 @@
 		],
 		"name": "mint",
 		"outputs": [],
-		"stateMutability": "payable",
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "metadataId",
+				"type": "uint256"
+			}
+		],
+		"name": "mintNFTfromID",
+		"outputs": [],
+		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
