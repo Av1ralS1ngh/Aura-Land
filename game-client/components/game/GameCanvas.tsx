@@ -4,8 +4,13 @@ import { useEffect, useRef } from 'react';
 import Phaser from 'phaser';
 import { GameScene } from './GameScene';
 
-export default function GameCanvas() {
+interface GameCanvasProps {
+  isPaused?: boolean;
+}
+
+export default function GameCanvas({ isPaused = false }: GameCanvasProps) {
   const gameRef = useRef<Phaser.Game | null>(null);
+  const sceneRef = useRef<GameScene | null>(null);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && !gameRef.current) {
@@ -34,6 +39,11 @@ export default function GameCanvas() {
 
       gameRef.current = new Phaser.Game(config);
 
+      // Store reference to the scene
+      gameRef.current.events.once('ready', () => {
+        sceneRef.current = gameRef.current?.scene.getScene('GameScene') as GameScene;
+      });
+
       // Handle resize
       const handleResize = () => {
         if (gameRef.current) {
@@ -50,10 +60,22 @@ export default function GameCanvas() {
         if (gameRef.current) {
           gameRef.current.destroy(true);
           gameRef.current = null;
+          sceneRef.current = null;
         }
       };
     }
   }, []);
+
+  // Handle pause state changes
+  useEffect(() => {
+    if (sceneRef.current) {
+      if (isPaused) {
+        sceneRef.current.pauseGame();
+      } else {
+        sceneRef.current.resumeGame();
+      }
+    }
+  }, [isPaused]);
 
   return (
     <div className="flex justify-center items-center h-full">

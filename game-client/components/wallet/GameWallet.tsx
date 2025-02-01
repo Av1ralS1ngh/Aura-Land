@@ -40,7 +40,7 @@ export default function GameWallet() {
             <div className="text-sm text-red-400 mt-1">{error}</div>
           ) : (
             <div className="text-2xl font-bold text-white">
-              {balance.toFixed(2)} TOKENS
+              {balance.toFixed(2)} CoA
             </div>
           )}
           {!address && (

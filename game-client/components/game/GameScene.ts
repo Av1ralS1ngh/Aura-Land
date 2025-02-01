@@ -243,32 +243,40 @@ export class GameScene extends Phaser.Scene {
     this.isPaused = !this.isPaused;
     
     if (this.isPaused) {
-      // Pause the game
-      this.physics.pause();
-      this.pauseOverlay.setVisible(true);
-      this.pauseMenu.setVisible(true);
-      
-      // Stop any ongoing animations
-      this.anims.pauseAll();
-      
-      // Disable game controls but keep ESC enabled
-      Object.values(this.controls).forEach(key => {
-        key.enabled = false;
-      });
+      this.pauseGame();
     } else {
-      // Resume the game
-      this.physics.resume();
-      this.pauseOverlay.setVisible(false);
-      this.pauseMenu.setVisible(false);
-      
-      // Resume animations
-      this.anims.resumeAll();
-      
-      // Re-enable all controls
-      Object.values(this.controls).forEach(key => {
-        key.enabled = true;
-      });
+      this.resumeGame();
     }
+  }
+
+  public pauseGame() {
+    this.isPaused = true;
+    this.physics.pause();
+    this.pauseOverlay.setVisible(true);
+    this.pauseMenu.setVisible(true);
+    
+    // Stop any ongoing animations
+    this.anims.pauseAll();
+    
+    // Disable game controls but keep ESC enabled
+    Object.values(this.controls).forEach(key => {
+      key.enabled = false;
+    });
+  }
+
+  public resumeGame() {
+    this.isPaused = false;
+    this.physics.resume();
+    this.pauseOverlay.setVisible(false);
+    this.pauseMenu.setVisible(false);
+    
+    // Resume animations
+    this.anims.resumeAll();
+    
+    // Re-enable all controls
+    Object.values(this.controls).forEach(key => {
+      key.enabled = true;
+    });
   }
 
   update() {
