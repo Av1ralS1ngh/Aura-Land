@@ -7,11 +7,13 @@ import CharacterSelectionModal from '@/components/game/CharacterSelectionModal';
 import GameCanvas from '@/components/game/GameCanvas';
 import GameBackground from '@/components/game/GameBackground';
 import GameWallet from '@/components/wallet/GameWallet';
+import GameInventory from '@/components/inventory/GameInventory';
 import { BlockchainProvider } from '@/lib/context/BlockchainContext';
 
 export default function GamePage() {
   const [isMobile, setIsMobile] = useState(false);
   const [showCharacterModal, setShowCharacterModal] = useState(true);
+  const [isGamePaused, setIsGamePaused] = useState(false);
   const { ready, authenticated } = usePrivy();
 
   useEffect(() => {
@@ -28,6 +30,14 @@ export default function GamePage() {
     // Cleanup
     return () => window.removeEventListener('resize', checkDevice);
   }, []);
+
+  const handleNFTClick = () => {
+    setIsGamePaused(true);
+  };
+
+  const handleNFTModalClose = () => {
+    setIsGamePaused(false);
+  };
 
   if (!ready) return null;
   if (!authenticated) return <div>Please connect your wallet to play</div>;
@@ -47,7 +57,9 @@ export default function GamePage() {
               isOpen={showCharacterModal} 
               onClose={() => setShowCharacterModal(false)} 
             />
-            {!showCharacterModal && <GameCanvas />}
+            {!showCharacterModal && (
+              <GameCanvas isPaused={isGamePaused} />
+            )}
           </div>
 
           {/* Sidebar */}
@@ -56,7 +68,7 @@ export default function GamePage() {
             <div className="flex-1 mb-4">
               <h2 className="text-xl font-bold mb-4 text-white">Inventory</h2>
               <div className="h-full rounded-lg bg-gray-800 bg-opacity-50 p-4">
-                {/* Inventory content will go here */}
+                <GameInventory onNFTClick={handleNFTClick} />
               </div>
             </div>
 

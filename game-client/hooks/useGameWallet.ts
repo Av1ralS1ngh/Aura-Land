@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
 import { usePrivyWallet } from './usePrivyWallet';
 import Web3 from 'web3';
+import { ERC20_ABI } from '@/lib/contracts/abi/erc_20';
 
 const TOKEN_ADDRESS = process.env.NEXT_PUBLIC_CONTRACT_ADDRESS_MINTER;
-const ERC20_ABI = [
-  'function balanceOf(address owner) view returns (uint256)',
-  'function decimals() view returns (uint8)',
-];
+
 
 export function useGameWallet() {
   const [balance, setBalance] = useState<number>(0);

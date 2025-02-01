@@ -3,7 +3,9 @@
 import React, { createContext, useContext, useCallback } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import Web3 from 'web3';
-import { CONTRACT_ADDRESS_MINTER, CONTRACT_ABI_MINTER, CONTRACT_ABI_NFT_MINTER, CONTRACT_ADDRESS_NFT_MINTER } from '../contracts/contract-config';
+import { CONTRACT_ABI_MINTER } from '../contracts/abi/token_minter';
+import { CONTRACT_ADDRESS_MINTER, CONTRACT_ADDRESS_NFT_MINTER } from '../contracts/contract-config';
+import { CONTRACT_ABI_NFT_MINTER } from '../contracts/abi/nft_minter';
 
 interface BlockchainContextType {
   mintTokens: (getSigner: () => Promise<any>) => Promise<string>;
@@ -35,7 +37,7 @@ export function BlockchainProvider({ children }: { children: React.ReactNode }) 
       );
 
       // Estimate gas for mint
-      const gasEstimate = await contract.methods.mint(user.wallet.address, "5000000000000000000000")
+      const gasEstimate = await contract.methods.mint(user.wallet.address, "5")
         .estimateGas({ from: user.wallet.address });
 
       // Add 20% buffer to gas estimate
@@ -43,7 +45,7 @@ export function BlockchainProvider({ children }: { children: React.ReactNode }) 
         (BigInt(gasEstimate) * BigInt(20) / BigInt(100));
 
       // Call mint function with 5000 tokens (with 18 decimals)
-      const tx = await contract.methods.mint(user.wallet.address, "1000000000000000000")
+      const tx = await contract.methods.mint(user.wallet.address, "1")
         .send({ 
           from: user.wallet.address,
           gas: gasWithBuffer.toString()
@@ -71,14 +73,15 @@ export function BlockchainProvider({ children }: { children: React.ReactNode }) 
         CONTRACT_ABI_NFT_MINTER,
         CONTRACT_ADDRESS_NFT_MINTER
       );
-
-      const gasEstimate = await contract.methods.mint(5)
+      console.log(contract);
+      console.log(contract.methods);
+      const gasEstimate = await contract.methods.mint("5")
         .estimateGas({ from: user.wallet.address });
 
       const gasWithBuffer = BigInt(gasEstimate) + 
         (BigInt(gasEstimate) * BigInt(20) / BigInt(100));
 
-      const tx = await contract.methods.mint(5)
+      const tx = await contract.methods.mint("5")
         .send({ 
           from: user.wallet.address,
           gas: gasWithBuffer.toString()
