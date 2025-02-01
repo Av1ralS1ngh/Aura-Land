@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useNFTInventory } from '@/hooks/useNFTInventory';
+import { useLockedNFT } from '@/lib/context/LockedNFTContext';
 import NFTModal from './NFTModal';
 import Image from 'next/image';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -11,15 +12,27 @@ import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface GameInventoryProps {
-  onNFTClick: () => void;
+  onNFTClick: (nft: any) => void;
 }
 
 export default function GameInventory({ onNFTClick }: GameInventoryProps) {
   const { tokenIds, metadata, isLoading, error } = useNFTInventory();
+  const { isNFTLocked, getUnlockTime } = useLockedNFT();
   const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
 
+  const formatTimeLeft = (unlocksAt: number) => {
+    const now = Date.now();
+    const timeLeft = Math.max(0, unlocksAt - now);
+    const minutes = Math.floor(timeLeft / (1000 * 60));
+    const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
   const handleNFTClick = (tokenId: string) => {
-    onNFTClick();
+    const nft = metadata[tokenId];
+    if (!isNFTLocked(tokenId)) {
+      onNFTClick(nft);
+    }
     setSelectedTokenId(tokenId);
   };
 
@@ -54,11 +67,17 @@ export default function GameInventory({ onNFTClick }: GameInventoryProps) {
       console.log(nft);
       if (!nft) return null;
 
+      const isLocked = isNFTLocked(tokenId);
+      const unlockTime = getUnlockTime(tokenId);
+
       return {
         title: "",
         description: (
           <div 
-            className="group flex flex-col items-center bg-black/40 rounded-xl overflow-hidden border border-gray-800/50 hover:border-purple-500/50 transition-all cursor-pointer aspect-square"
+            className={cn(
+              "group flex flex-col items-center bg-black/40 rounded-xl overflow-hidden border transition-all cursor-pointer aspect-square",
+              isLocked ? "border-red-800/50" : "border-gray-800/50 hover:border-purple-500/50"
+            )}
             onClick={() => handleNFTClick(tokenId)}
           >
             <div className="w-full relative flex-1">
@@ -67,9 +86,47 @@ export default function GameInventory({ onNFTClick }: GameInventoryProps) {
                 src={nft.image}
                 alt={nft.name}
                 fill
-                className="object-cover transition-all group-hover:scale-105"
+                className={cn(
+                  "object-cover transition-all",
+                  isLocked ? "opacity-40 saturate-50" : "group-hover:scale-105"
+                )}
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 33vw, 25vw"
               />
+              {isLocked && unlockTime && (
+                <>
+                  <div className="absolute top-2 right-2 flex items-center gap-2 bg-black/80 px-2 py-1 rounded-full text-white z-30">
+                    <svg 
+                      className="w-4 h-4" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        strokeWidth={2} 
+                        d="M12 15v2m0 0v2m0-2h2m-2 0H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" 
+                      />
+                    </svg>
+                    <span className="text-xs font-medium">{formatTimeLeft(unlockTime)}</span>
+                  </div>
+                  <div className="absolute inset-0 flex items-center justify-center z-20">
+                    <svg 
+                      className="w-20 h-20 text-red-500/50" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      viewBox="0 0 24 24"
+                    >
+                      <path 
+                        strokeLinecap="round" 
+                        strokeLinejoin="round" 
+                        strokeWidth={2} 
+                        d="M12 15v2m0 0v2m0-2h2m-2 0H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" 
+                      />
+                    </svg>
+                  </div>
+                </>
+              )}
             </div>
             <div className="w-full p-2 flex justify-between items-center bg-black/40 relative z-20">
               <h3 className="text-sm font-medium text-gray-100 group-hover:text-white">
@@ -78,11 +135,11 @@ export default function GameInventory({ onNFTClick }: GameInventoryProps) {
               <Badge 
                 variant="secondary" 
                 className={cn(
-                  "bg-purple-500/20 text-purple-300 group-hover:bg-purple-500/30",
+                  isLocked ? "bg-red-500/20 text-red-300" : "bg-purple-500/20 text-purple-300 group-hover:bg-purple-500/30",
                   "transition-colors duration-200"
                 )}
               >
-                Skill: {nft.skill}
+                {isLocked ? "Locked" : `Skill: ${nft.skill}`}
               </Badge>
             </div>
           </div>

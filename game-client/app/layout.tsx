@@ -2,8 +2,6 @@ import type { Metadata } from "next";
 import "./globals.css";
 import {  Providers } from "@/components/providers/privy-provider";
 
-
-
 const metadata: Metadata = {
   title: "Block Game",
   description: "A Cross-Chain NFT Gaming Platform with AI NPCs",
@@ -18,8 +16,8 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <Providers>
-          {children}
-        </Providers>
+            {children}
++        </Providers>
       </body>
     </html>
   );

@@ -3,6 +3,7 @@
 import React from 'react';
 
 import { PrivyProvider } from '@privy-io/react-auth';
+import { LockedNFTProvider } from '@/lib/context/LockedNFTContext';
 
 if (!process.env.NEXT_PUBLIC_PRIVY_APP_ID) {
   throw new Error(
@@ -43,7 +44,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         supportedChains: [baseSepolia],
       }}
     >
-      {children}
+      <LockedNFTProvider>{children}</LockedNFTProvider>
     </PrivyProvider>
   );
 }
