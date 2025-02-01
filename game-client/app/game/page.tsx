@@ -5,6 +5,7 @@ import { usePrivy } from '@privy-io/react-auth';
 import MobileError from '@/components/MobileError';
 import CharacterSelectionModal from '@/components/game/CharacterSelectionModal';
 import GameCanvas from '@/components/game/GameCanvas';
+import TradeDialog from '@/components/game/TradeDialog';
 import GameBackground from '@/components/game/GameBackground';
 import GameWallet from '@/components/wallet/GameWallet';
 import GameInventory from '@/components/inventory/GameInventory';
@@ -14,6 +15,8 @@ export default function GamePage() {
   const [isMobile, setIsMobile] = useState(false);
   const [showCharacterModal, setShowCharacterModal] = useState(true);
   const [isGamePaused, setIsGamePaused] = useState(false);
+  const [showTradeDialog, setShowTradeDialog] = useState(false);
+  const [tradingNPC, setTradingNPC] = useState('');
   const { ready, authenticated } = usePrivy();
 
   useEffect(() => {
@@ -53,13 +56,21 @@ export default function GamePage() {
         <div className="relative z-10 flex w-full h-full">
           {/* Game area */}
           <div className="flex-grow h-full">
-            <CharacterSelectionModal 
+            {/* <CharacterSelectionModal 
               isOpen={showCharacterModal} 
               onClose={() => setShowCharacterModal(false)} 
+            /> */}
+            {/* {!showCharacterModal && ( */}
+            <GameCanvas 
+              isPaused={isGamePaused} 
+              onPause={() => setIsGamePaused(true)}
+              onResume={() => setIsGamePaused(false)}
+              onOpenTrade={(npcName: string) => {
+                setTradingNPC(npcName);
+                setShowTradeDialog(true);
+              }}
             />
-            {!showCharacterModal && (
-              <GameCanvas isPaused={isGamePaused} />
-            )}
+            {/* )} */}
           </div>
 
           {/* Sidebar */}
@@ -77,6 +88,16 @@ export default function GamePage() {
               <GameWallet />
             </div>
           </div>
+
+          {/* Trade Dialog */}
+          <TradeDialog
+            isOpen={showTradeDialog}
+            onClose={() => {
+              setShowTradeDialog(false);
+              setIsGamePaused(false);
+            }}
+            npcName={tradingNPC}
+          />
         </div>
       </div>
     </BlockchainProvider>

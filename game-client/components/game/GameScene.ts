@@ -5,12 +5,14 @@ export class GameScene extends Phaser.Scene {
   private controls!: any;
   private playerAttacks!: Phaser.Physics.Arcade.Group;
   private enemies!: Phaser.Physics.Arcade.Group;
+  private npcs!: Phaser.Physics.Arcade.Group;
   private bosses!: Phaser.Physics.Arcade.Group;
   private collectables!: Phaser.Physics.Arcade.Group;
   private corpses!: Phaser.Physics.Arcade.Group;
   private obstacles!: Phaser.Physics.Arcade.Group;
   private grid!: Phaser.GameObjects.Graphics;
   private notificationLabel!: Phaser.GameObjects.Text;
+  private interactionLabel!: Phaser.GameObjects.Text;
   private xpLabel!: Phaser.GameObjects.Text;
   private healthLabel!: Phaser.GameObjects.Text;
   private goldLabel!: Phaser.GameObjects.Text;
@@ -75,6 +77,7 @@ export class GameScene extends Phaser.Scene {
 
     // Create groups
     this.enemies = this.physics.add.group();
+    this.npcs = this.physics.add.group();
     this.bosses = this.physics.add.group();
     this.collectables = this.physics.add.group();
     this.corpses = this.physics.add.group();
@@ -104,6 +107,9 @@ export class GameScene extends Phaser.Scene {
 
     // Create initial enemies
     this.createEnemies(5);
+
+    // Create NPCs
+    this.createNPCs();
 
     // Setup UI
     this.showLabels();
@@ -171,7 +177,8 @@ export class GameScene extends Phaser.Scene {
       left: Phaser.Input.Keyboard.KeyCodes.A,
       right: Phaser.Input.Keyboard.KeyCodes.D,
       attack: Phaser.Input.Keyboard.KeyCodes.SPACE,
-      spell: Phaser.Input.Keyboard.KeyCodes.SHIFT
+      spell: Phaser.Input.Keyboard.KeyCodes.SHIFT,
+      interact: Phaser.Input.Keyboard.KeyCodes.E
     });
 
     // Add ESC key for pause
@@ -218,6 +225,7 @@ export class GameScene extends Phaser.Scene {
       'WASD - Move\n' +
       'SPACE - Attack\n' +
       'SHIFT - Cast Spell\n' +
+      'E - Interact\n' +
       'ESC - Pause/Unpause',
       {
         fontSize: '20px',
@@ -262,6 +270,7 @@ export class GameScene extends Phaser.Scene {
     Object.values(this.controls).forEach(key => {
       key.enabled = false;
     });
+    this.controls.interact.enabled = true;
   }
 
   public resumeGame() {
@@ -288,6 +297,7 @@ export class GameScene extends Phaser.Scene {
     this.handleAttacks();
     this.updateLabels();
     this.checkGameOver();
+    this.checkNPCInteraction();
   }
 
   private handleAttacks() {
@@ -608,6 +618,9 @@ export class GameScene extends Phaser.Scene {
 
     this.spellLabel = this.add.text(230, this.game.canvas.height - 25, 'Ready', style);
     this.spellLabel.setScrollFactor(0);
+
+    this.interactionLabel = this.add.text(25, 50, '', style);
+    this.interactionLabel.setScrollFactor(0);
   }
 
   private handlePlayerMovement() {
@@ -763,7 +776,6 @@ export class GameScene extends Phaser.Scene {
 
   private createEnemies(count: number) {
     const enemyTypes = [
-      { name: 'Skeleton', frames: [9, 10, 11], health: 100, speed: 70, strength: 20 },
       { name: 'Slime', frames: [48, 49, 50], health: 300, speed: 40, strength: 50 },
       { name: 'Bat', frames: [51, 52, 53], health: 20, speed: 200, strength: 10 },
       { name: 'Ghost', frames: [54, 55, 56], health: 200, speed: 60, strength: 30 },
@@ -799,6 +811,104 @@ export class GameScene extends Phaser.Scene {
       (enemy as any).strength = enemyType.strength;
       (enemy as any).name = enemyType.name;
     }
+  }
+
+  private createNPCs() {
+    const npcTypes = [
+      { name: 'Skeleton', frames: [9, 10, 11], health: 100, speed: 70, strength: 20, roamArea: { x: 500, y: 500, radius: 100 } }
+    ];
+
+    npcTypes.forEach(npcType => {
+      const npc = this.npcs.create(npcType.roamArea.x, npcType.roamArea.y, 'characters') as Phaser.Physics.Arcade.Sprite;
+      npc.setScale(2);
+      
+      // Create NPC animation
+      const animKey = `${npcType.name.toLowerCase()}-idle`;
+      if (!this.anims.exists(animKey)) {
+        this.anims.create({
+          key: animKey,
+          frames: this.anims.generateFrameNumbers('characters', { frames: npcType.frames }),
+          frameRate: 8,
+          repeat: -1
+        });
+      }
+      
+      npc.play(animKey);
+      npc.setCollideWorldBounds(true);
+      
+      // Set NPC properties
+      (npc as any).roamArea = npcType.roamArea;
+      (npc as any).name = npcType.name;
+      (npc as any).isInteractable = true;
+      
+      // Start roaming behavior
+      this.startNPCRoaming(npc);
+    });
+  }
+
+  private startNPCRoaming(npc: Phaser.Physics.Arcade.Sprite) {
+    const roamArea = (npc as any).roamArea;
+    
+    const moveToNewPosition = () => {
+      if (this.isPaused) return;
+      
+      const angle = Math.random() * Math.PI * 2;
+      const distance = Math.random() * roamArea.radius;
+      const targetX = roamArea.x + Math.cos(angle) * distance;
+      const targetY = roamArea.y + Math.sin(angle) * distance;
+      
+      this.physics.moveTo(npc, targetX, targetY, 50);
+      
+      // Stop at destination
+      this.time.delayedCall(2000, () => {
+        npc.setVelocity(0);
+        // Schedule next movement
+        this.time.delayedCall(Phaser.Math.Between(1000, 3000), moveToNewPosition);
+      });
+    };
+    
+    moveToNewPosition();
+  }
+
+  private checkNPCInteraction() {
+    let canInteract = false;
+    
+    this.npcs.getChildren().forEach((npc: any) => {
+      if (!npc.isInteractable) return;
+      
+      const distance = Phaser.Math.Distance.Between(
+        this.player.x,
+        this.player.y,
+        npc.x,
+        npc.y
+      );
+      
+      if (distance < 100) {
+        canInteract = true;
+        this.interactionLabel.setText('Press E to interact');
+        this.interactionLabel.setPosition(
+          this.game.canvas.width / 2 - this.interactionLabel.width / 2,
+          50
+        );
+        
+        // Check for E key press
+        if (this.controls.interact.isDown) {
+          this.openTradeDialog(npc);
+        }
+      }
+    });
+    
+    if (!canInteract) {
+      this.interactionLabel.setText('');
+    }
+  }
+
+  private openTradeDialog(npc: any) {
+    if (this.isPaused) return;
+    
+    this.pauseGame();
+    // Emit event for UI layer to show trade dialog
+    this.events.emit('openTradeDialog', npc.name);
   }
 
   private deathHandler(target: any) {
