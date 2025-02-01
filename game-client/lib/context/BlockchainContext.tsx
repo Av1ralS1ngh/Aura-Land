@@ -10,6 +10,7 @@ import { CONTRACT_ABI_NFT_MINTER } from '../contracts/abi/nft_minter';
 interface BlockchainContextType {
   mintTokens: (getSigner: () => Promise<any>) => Promise<string>;
   mintNFTs: (getSigner: () => Promise<any>) => Promise<string>;
+  tokenURI: (tokenId: string) => Promise<string>;
   isLoadingTokens: boolean;
   isLoadingNFTs: boolean;
 }
@@ -96,9 +97,32 @@ export function BlockchainProvider({ children }: { children: React.ReactNode }) 
     }
   }, [user?.wallet?.address]);
 
+  const tokenURI = useCallback(async (tokenId: string): Promise<string> => {
+    if (!user?.wallet?.address) {
+      throw new Error('Wallet not connected');
+    }
+
+    try {
+      const web3 = new Web3(window.ethereum);
+      const contract = new web3.eth.Contract(
+        CONTRACT_ABI_NFT_MINTER,
+        CONTRACT_ADDRESS_NFT_MINTER
+      );
+
+      // Get the token URI from the contract
+      const uri = await contract.methods.tokenURI(tokenId).call();
+      console.log(`Token URI for ID ${tokenId}:`, uri);
+      return uri;
+    } catch (error) {
+      console.error(`Error fetching token URI for ID ${tokenId}:`, error);
+      throw error;
+    }
+  }, [user?.wallet?.address]);
+
   const value = {
     mintTokens,
     mintNFTs,
+    tokenURI,
     isLoadingTokens,
     isLoadingNFTs
   };
