@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
@@ -17,6 +17,9 @@ export default function BattleScene({ isVisible, playerNFT, npcNFT, onBattleEnd 
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const battleCheckInterval = useRef<NodeJS.Timeout | null>(null);
+  const [showEndBattle, setShowEndBattle] = useState(false);
+  const [playerWon, setPlayerWon] = useState(false);
+  const [showLightning, setShowLightning] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current || !isVisible) return;
@@ -52,15 +55,17 @@ export default function BattleScene({ isVisible, playerNFT, npcNFT, onBattleEnd 
 
     // Add multiple lightning bolts
     const lightnings: THREE.Line[] = [];
-    for (let i = 0; i < 5; i++) {
-      const lightning = createLightning();
-      scene.add(lightning);
-      lightnings.push(lightning);
+    if (showLightning) {
+      for (let i = 0; i < 5; i++) {
+        const lightning = createLightning();
+        scene.add(lightning);
+        lightnings.push(lightning);
+      }
     }
 
     // Animation loop
     const animate = () => {
-      if (!isVisible) return;
+      if (!isVisible || !showLightning) return;
       
       requestAnimationFrame(animate);
 
@@ -84,10 +89,11 @@ export default function BattleScene({ isVisible, playerNFT, npcNFT, onBattleEnd 
       if (gameScene && gameScene.isBattling) {
         // Check if either player or NPC is dead
         if (gameScene.playerHealth <= 0 || gameScene.npcHealth <= 0) {
-          const playerWon = gameScene.npcHealth <= 0;
+          const won = gameScene.npcHealth <= 0;
+          setPlayerWon(won);
+          setShowLightning(true);
+          setShowEndBattle(true);
           clearInterval(battleCheckInterval.current!);
-          gameScene.endNPCBattle();
-          onBattleEnd(playerWon);
         }
       }
     }, 100);
@@ -103,7 +109,15 @@ export default function BattleScene({ isVisible, playerNFT, npcNFT, onBattleEnd 
         clearInterval(battleCheckInterval.current);
       }
     };
-  }, [isVisible]);
+  }, [isVisible, showLightning]);
+
+  const handleContinue = () => {
+    const gameScene = (window as any).gameScene;
+    if (gameScene) {
+      gameScene.endNPCBattle();
+      onBattleEnd(playerWon);
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -128,11 +142,13 @@ export default function BattleScene({ isVisible, playerNFT, npcNFT, onBattleEnd 
             </div>
 
             {/* Battle Instructions */}
-            <div className="bg-black bg-opacity-50 p-4 rounded-lg text-white text-center">
-              <p className="text-xl font-bold mb-2">Battle Controls</p>
-              <p>SPACE - Sword Attack</p>
-              <p>SHIFT - Cast Spell</p>
-            </div>
+            {!showEndBattle && (
+              <div className="bg-black bg-opacity-50 p-4 rounded-lg text-white text-center">
+                <p className="text-xl font-bold mb-2">Battle Controls</p>
+                <p>SPACE - Sword Attack</p>
+                <p>SHIFT - Cast Spell</p>
+              </div>
+            )}
 
             {/* NPC Info */}
             <div className="bg-black bg-opacity-50 p-4 rounded-lg">
@@ -147,6 +163,25 @@ export default function BattleScene({ isVisible, playerNFT, npcNFT, onBattleEnd 
               <div className="text-white text-center">{npcNFT.name}</div>
             </div>
           </div>
+
+          {/* Battle End UI */}
+          {showEndBattle && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="fixed inset-0 flex flex-col items-center justify-center"
+            >
+              <div className="text-4xl font-bold text-white mb-8">
+                {playerWon ? "You Won!" : "You Lost!"}
+              </div>
+              <button
+                onClick={handleContinue}
+                className="px-6 py-3 bg-yellow-500 text-black rounded-lg font-bold hover:bg-yellow-400"
+              >
+                Continue
+              </button>
+            </motion.div>
+          )}
         </div>
       )}
     </AnimatePresence>
