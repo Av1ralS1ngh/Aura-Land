@@ -246,7 +246,20 @@ export const CONTRACT_ABI_NFT_MINTER = [
 		],
 		"name": "mint",
 		"outputs": [],
-		"stateMutability": "payable",
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "uint256",
+				"name": "metadataId",
+				"type": "uint256"
+			}
+		],
+		"name": "mintNFTfromID",
+		"outputs": [],
+		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
