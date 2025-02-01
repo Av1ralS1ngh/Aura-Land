@@ -9,9 +9,18 @@ interface GameCanvasProps {
   onPause?: () => void;
   onResume?: () => void;
   onOpenTrade?: (npcName: string) => void;
+  onStartBattle?: () => void;
+  onEndBattle?: () => void;
 }
 
-export default function GameCanvas({ isPaused = false, onPause, onResume, onOpenTrade }: GameCanvasProps) {
+export default function GameCanvas({ 
+  isPaused = false, 
+  onPause, 
+  onResume, 
+  onOpenTrade,
+  onStartBattle,
+  onEndBattle 
+}: GameCanvasProps) {
   const gameRef = useRef<Phaser.Game | null>(null);
   const sceneRef = useRef<GameScene | null>(null);
 
@@ -60,6 +69,14 @@ export default function GameCanvas({ isPaused = false, onPause, onResume, onOpen
         scene.events.on('openTradeDialog', (npcName: string) => {
           onOpenTrade?.(npcName);
         });
+
+        scene.events.on('startBattle', () => {
+          onStartBattle?.();
+        });
+
+        scene.events.on('endBattle', () => {
+          onEndBattle?.();
+        });
       });
 
       // Handle resize
@@ -81,6 +98,12 @@ export default function GameCanvas({ isPaused = false, onPause, onResume, onOpen
       };
     }
   }, []);
+
+  useEffect(() => {
+    if (sceneRef.current) {
+      (window as any).gameScene = sceneRef.current;
+    }
+  }, [sceneRef.current]);
 
   useEffect(() => {
     if (sceneRef.current) {

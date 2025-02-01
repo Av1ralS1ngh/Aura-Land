@@ -28,8 +28,8 @@ export class GameScene extends Phaser.Scene {
   private playerStrength: number = 20;
   private isGameOver: boolean = false;
   private isPaused: boolean = false;
-  private pauseMenu!: Phaser.GameObjects.Container;
-  private pauseOverlay!: Phaser.GameObjects.Graphics;
+  private isBattling: boolean = false;
+  private battleNPC: any = null;
 
   constructor() {
     super({ key: 'GameScene' });
@@ -292,12 +292,13 @@ export class GameScene extends Phaser.Scene {
     if (this.isGameOver || this.isPaused) return;
 
     this.handlePlayerMovement();
-    this.handleEnemyMovement();
-    this.handleBossMovement();
+    if (!this.isBattling) {
+      this.handleEnemyMovement();
+      this.checkNPCInteraction();
+    }
     this.handleAttacks();
     this.updateLabels();
     this.checkGameOver();
-    this.checkNPCInteraction();
   }
 
   private handleAttacks() {
@@ -909,6 +910,43 @@ export class GameScene extends Phaser.Scene {
     this.pauseGame();
     // Emit event for UI layer to show trade dialog
     this.events.emit('openTradeDialog', npc.name);
+  }
+
+  private startNPCBattle(npc: Phaser.Physics.Arcade.Sprite) {
+    this.isBattling = true;
+    this.battleNPC = npc;
+    
+    // Freeze all enemies
+    this.enemies.getChildren().forEach((enemy: any) => {
+      enemy.setVelocity(0, 0);
+    });
+
+    // Make NPC hold sword (change animation)
+    const animKey = 'skeleton-battle';
+    if (!this.anims.exists(animKey)) {
+      this.anims.create({
+        key: animKey,
+        frames: this.anims.generateFrameNumbers('characters', { frames: [27, 28, 29] }), // Use sword-wielding frames
+        frameRate: 8,
+        repeat: -1
+      });
+    }
+    npc.play(animKey);
+  }
+
+  private endNPCBattle() {
+    this.isBattling = false;
+    
+    // Unfreeze enemies
+    this.enemies.getChildren().forEach((enemy: any) => {
+      this.startEnemyMovement(enemy);
+    });
+
+    // Reset NPC animation
+    if (this.battleNPC) {
+      this.battleNPC.play('skeleton-idle');
+      this.battleNPC = null;
+    }
   }
 
   private deathHandler(target: any) {
