@@ -3,8 +3,7 @@ import { usePrivyWallet } from './usePrivyWallet';
 import { NFTMetadata } from '@/types/nft';
 import { ERC721_ABI } from '@/lib/contracts/abi/erc_721';
 import { CONTRACT_ADDRESS_NFT_MINTER } from '@/lib/contracts/contract-config';
-
-const METADATA_BASE_URL = 'https://gateway.lighthouse.storage/ipfs/bafybeiem7ucsjote74moefa2kmprng6cdtcey43hakgvpww3icahqtpgee/';
+import { useBlockchain } from '@/lib/context/BlockchainContext';
 
 export function useNFTInventory() {
   const [tokenIds, setTokenIds] = useState<string[]>([]);
@@ -13,6 +12,7 @@ export function useNFTInventory() {
   const [error, setError] = useState<string | null>(null);
   
   const { address, authenticated, signer } = usePrivyWallet();
+  const { tokenURI } = useBlockchain();
 
   useEffect(() => {
     let mounted = true;
@@ -30,39 +30,50 @@ export function useNFTInventory() {
         // Create contract instance
         const contract = new web3.eth.Contract(ERC721_ABI as any, CONTRACT_ADDRESS_NFT_MINTER);
 
-        // Get all token IDs (for testing, we'll use a fixed range)
-        const testTokenIds = Array.from({ length: 5 }, (_, i) => i + 1);
         const ownedTokenIds = [];
+        let tokenId = 1;
+        let consecutiveFailures = 0;
+        const MAX_CONSECUTIVE_FAILURES = 5; // Stop after 5 consecutive failures
 
-        // Check ownership of each token
-        for (const tokenId of testTokenIds) {
+        // Keep checking tokens until we hit consecutive failures
+        while (consecutiveFailures < MAX_CONSECUTIVE_FAILURES) {
           try {
             const owner = await contract.methods.ownerOf(tokenId).call();
             if (owner.toLowerCase() === address.toLowerCase()) {
               ownedTokenIds.push(tokenId.toString());
+              consecutiveFailures = 0; // Reset consecutive failures when we find an owned token
             }
+            tokenId++;
           } catch (err) {
-            console.log(`Token ${tokenId} might not exist or other error:`, err);
+            console.log(`Token ${tokenId} check failed:`, err);
+            consecutiveFailures++;
+            tokenId++;
           }
         }
 
+        console.log(`Found ${ownedTokenIds.length} NFTs after checking ${tokenId - 1} tokens`);
+
         if (mounted) {
           setTokenIds(ownedTokenIds);
+          console.log('Owned token IDs:', ownedTokenIds);
           
-          // Fetch metadata for each owned token
-          const metadataPromises = ownedTokenIds.map(id => 
-            fetch(`${METADATA_BASE_URL}${id}.json`)
-              .then(res => res.json())
-              .catch(err => {
-                console.error(`Error fetching metadata for token ${id}:`, err);
-                return null;
-              })
-          );
+          // Fetch metadata for each owned token using tokenURI from contract
+          const metadataPromises = ownedTokenIds.map(async (id) => {
+            try {
+              const uri = await tokenURI(id);
+              const response = await fetch(uri);
+              if (!response.ok) throw new Error(`Failed to fetch metadata for token ${id}`);
+              return { id, metadata: await response.json() };
+            } catch (err) {
+              console.error(`Error fetching metadata for token ${id}:`, err);
+              return { id, metadata: null };
+            }
+          });
 
           const metadataResults = await Promise.all(metadataPromises);
-          const metadataMap = ownedTokenIds.reduce((acc, id, index) => {
-            if (metadataResults[index]) {
-              acc[id] = metadataResults[index];
+          const metadataMap = metadataResults.reduce((acc, { id, metadata }) => {
+            if (metadata) {
+              acc[id] = metadata;
             }
             return acc;
           }, {} as Record<string, NFTMetadata>);
@@ -87,7 +98,7 @@ export function useNFTInventory() {
     return () => {
       mounted = false;
     };
-  }, [address, authenticated, signer]);
+  }, [address, authenticated, signer, tokenURI]);
 
   return { tokenIds, metadata, isLoading, error };
 }

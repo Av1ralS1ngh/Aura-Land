@@ -63,17 +63,17 @@ export default function GamePage() {
           </div>
 
           {/* Sidebar */}
-          <div className="w-[30%] min-w-[300px] h-full bg-black bg-opacity-50 p-4 flex flex-col">
+          <div className="w-[30%] min-w-[300px] h-full bg-black bg-opacity-50 flex flex-col">
             {/* Inventory section */}
-            <div className="flex-1 mb-4">
+            <div className="flex-1 p-4 min-h-0 flex flex-col">
               <h2 className="text-xl font-bold mb-4 text-white">Inventory</h2>
-              <div className="h-full rounded-lg bg-gray-800 bg-opacity-50 p-4">
+              <div className="flex-1 min-h-0 rounded-lg bg-gray-800 bg-opacity-50 p-4 overflow-y-auto">
                 <GameInventory onNFTClick={handleNFTClick} />
               </div>
             </div>
 
             {/* Wallet section */}
-            <div className="h-auto">
+            <div className="p-4">
               <GameWallet />
             </div>
           </div>

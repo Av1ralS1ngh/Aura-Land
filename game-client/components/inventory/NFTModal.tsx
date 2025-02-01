@@ -2,6 +2,16 @@
 
 import { NFTMetadata } from '@/types/nft';
 import Image from 'next/image';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface NFTModalProps {
   metadata: NFTMetadata;
@@ -10,80 +20,79 @@ interface NFTModalProps {
 
 export default function NFTModal({ metadata, onClose }: NFTModalProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-75">
-      <div className="bg-gray-800 rounded-lg max-w-2xl w-full p-6 relative">
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-white"
-        >
-          <svg
-            className="w-6 h-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
+    <Dialog open={true} onOpenChange={() => onClose()}>
+      <DialogContent className="max-w-2xl bg-gray-900 border-gray-800">
+        <DialogHeader>
+          <DialogTitle className="text-2xl font-bold">{metadata.name}</DialogTitle>
+          <DialogDescription className="text-gray-400">
+            {metadata.description}
+          </DialogDescription>
+        </DialogHeader>
 
-        <div className="flex flex-col md:flex-row gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Image */}
-          <div className="w-full md:w-1/2">
-            <div className="relative aspect-square rounded-lg overflow-hidden">
-              <Image
-                src={metadata.image}
-                alt={metadata.name}
-                fill
-                className="object-cover"
-              />
-            </div>
-          </div>
+          <Card className="bg-gray-800/50 border-gray-700">
+            <CardContent className="p-0">
+              <div className="relative aspect-square rounded-lg overflow-hidden">
+                <Image
+                  src={metadata.image}
+                  alt={metadata.name}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                />
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Details */}
-          <div className="w-full md:w-1/2">
-            <h2 className="text-2xl font-bold text-white mb-2">{metadata.name}</h2>
-            <p className="text-gray-400 mb-4">{metadata.description}</p>
-
+          <div className="space-y-4">
             {/* Stats */}
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div className="bg-gray-700 rounded-lg p-3">
-                <div className="text-sm text-gray-400">Rarity</div>
-                <div className="text-xl font-bold text-white">
-                  {(metadata.rarity * 100).toFixed(2)}%
-                </div>
-              </div>
-              <div className="bg-gray-700 rounded-lg p-3">
-                <div className="text-sm text-gray-400">Skill Level</div>
-                <div className="text-xl font-bold text-white">
-                  {metadata.skill}
-                </div>
-              </div>
+            <div className="grid grid-cols-2 gap-2">
+              <Card className="bg-gray-800/50 border-gray-700">
+                <CardContent className="p-4">
+                  <div className="text-sm text-gray-400">Rarity</div>
+                  <div className="text-xl font-bold text-white">
+                    {(metadata.rarity * 100).toFixed(2)}%
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-gray-800/50 border-gray-700">
+                <CardContent className="p-4">
+                  <div className="text-sm text-gray-400">Skill Level</div>
+                  <div className="text-xl font-bold text-white">
+                    {metadata.skill}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
 
             {/* Attributes */}
             <div className="space-y-2">
-              <h3 className="text-lg font-semibold text-white mb-2">Attributes</h3>
-              <div className="grid grid-cols-2 gap-2">
-                {metadata.attributes.map((attr, index) => (
-                  <div
-                    key={index}
-                    className="bg-gray-700 rounded-lg p-2"
-                  >
-                    <div className="text-sm text-gray-400">{attr.trait_type}</div>
-                    <div className="text-white font-medium">{attr.value}</div>
-                  </div>
-                ))}
-              </div>
+              <h3 className="text-lg font-semibold text-white">Attributes</h3>
+              <ScrollArea className="h-[200px] pr-4">
+                <div className="grid grid-cols-2 gap-2">
+                  {metadata.attributes.map((attr, index) => (
+                    <Card
+                      key={index}
+                      className="bg-gray-800/50 border-gray-700"
+                    >
+                      <CardContent className="p-3">
+                        <div className="text-sm text-gray-400">
+                          {attr.trait_type}
+                        </div>
+                        <div className="text-white font-medium truncate">
+                          {attr.value}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </ScrollArea>
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -4,9 +4,14 @@ import { useState } from 'react';
 import { useNFTInventory } from '@/hooks/useNFTInventory';
 import NFTModal from './NFTModal';
 import Image from 'next/image';
+import { HoverEffect } from '@/components/ui/card-hover-effect';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 interface GameInventoryProps {
-  onNFTClick: () => void; // To pause the game
+  onNFTClick: () => void;
 }
 
 export default function GameInventory({ onNFTClick }: GameInventoryProps) {
@@ -20,51 +25,81 @@ export default function GameInventory({ onNFTClick }: GameInventoryProps) {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-full">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+      <div className="grid grid-cols-3 gap-4">
+        {[...Array(6)].map((_, i) => (
+          <div key={i} className="bg-gray-800/50 rounded-xl border border-gray-700">
+            <div className="p-0">
+              <Skeleton className="w-full aspect-square rounded-t-xl" />
+            </div>
+            <div className="p-2">
+              <Skeleton className="h-4 w-full" />
+            </div>
+          </div>
+        ))}
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="text-red-400 text-center">
+      <div className="text-red-400 text-center p-4 bg-red-900/20 rounded-lg border border-red-800">
         {error}
       </div>
     );
   }
 
+  const items = tokenIds.map((tokenId) => {
+    const nft = metadata[tokenId];
+    console.log(nft);
+    if (!nft) return null;
+
+    return {
+      title: nft.name,
+      description: (
+        <div className="flex flex-col gap-2">
+          <div className="relative aspect-square rounded-xl overflow-hidden">
+            <Image
+              src={nft.image}
+              alt={nft.name}
+              fill
+              className="object-cover transition-all"
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 33vw, 25vw"
+            />
+          </div>
+          <Badge 
+            variant="secondary" 
+            className={cn(
+              "w-fit bg-purple-500/20 text-purple-300 hover:bg-purple-500/30",
+              "transition-colors duration-200"
+            )}
+          >
+            Skill: {nft.skill}
+          </Badge>
+        </div>
+      ),
+      link: "#",
+    };
+  }).filter(Boolean) as { title: string; description: React.ReactNode; link: string }[];
+
   return (
     <>
-      <div className="grid grid-cols-2 gap-4 h-full overflow-y-auto">
-        {tokenIds.map((tokenId) => {
-          const nft = metadata[tokenId];
-          if (!nft) return null;
-
-          return (
-            <button
-              key={tokenId}
-              onClick={() => handleNFTClick(tokenId)}
-              className="relative aspect-square rounded-lg overflow-hidden hover:ring-2 hover:ring-purple-500 transition-all"
-            >
-              <Image
-                src={nft.image}
-                alt={nft.name}
-                fill
-                className="object-cover"
-              />
-              <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 p-2">
-                <div className="text-sm text-white truncate">
-                  {nft.name}
-                </div>
-                <div className="text-xs text-gray-300">
-                  Skill: {nft.skill}
-                </div>
-              </div>
-            </button>
-          );
-        })}
-      </div>
+      <ScrollArea className="h-full w-full pr-4">
+        <div className="pb-4" onClick={(e) => {
+          const link = (e.target as HTMLElement).closest('a');
+          if (link) {
+            e.preventDefault();
+            const index = items.findIndex(item => item.link === link.getAttribute('href'));
+            if (index !== -1) {
+              handleNFTClick(tokenIds[index]);
+            }
+          }
+        }}>
+          <HoverEffect 
+            items={items} 
+            className="grid-cols-3 !py-0"
+          />
+        </div>
+      </ScrollArea>
 
       {selectedTokenId && metadata[selectedTokenId] && (
         <NFTModal
