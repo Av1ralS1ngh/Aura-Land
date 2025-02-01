@@ -138,7 +138,10 @@ export default function GamePage() {
             </div>
           </motion.div>
         </div>
-
+        <CharacterSelectionModal
+          isOpen={showCharacterModal}
+          onClose={() => setShowCharacterModal(false)}
+        />
         {/* Trade Dialog */}
         <TradeDialog
           isOpen={showTradeDialog}

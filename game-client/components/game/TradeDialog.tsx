@@ -9,8 +9,10 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useNFTInventory } from '@/hooks/useNFTInventory';
+import { useBlockchain } from '@/lib/context/BlockchainContext';
 import NFTSelectionDialog from './NFTSelectionDialog';
 import BattleScene from './BattleScene';
+import { useToast } from '@/hooks/use-toast';
 
 interface TradeDialogProps {
   isOpen: boolean;
@@ -36,6 +38,8 @@ const npcDialogs = [
 ];
 
 export default function TradeDialog({ isOpen, onClose, npcName }: TradeDialogProps) {
+  const { mintCustomNFT } = useBlockchain();
+  const { toast } = useToast();
   const [selectedNFT, setSelectedNFT] = useState<number | null>(null);
   const [nftPrice, setNftPrice] = useState<number | null>(null);
   const [showBattleOffer, setShowBattleOffer] = useState(false);
@@ -44,6 +48,7 @@ export default function TradeDialog({ isOpen, onClose, npcName }: TradeDialogPro
   const [showNFTSelection, setShowNFTSelection] = useState(false);
   const [playerNFT, setPlayerNFT] = useState<NFTMetadata | null>(null);
   const [showBattleScene, setShowBattleScene] = useState(false);
+  const [battleStarted, setBattleStarted] = useState(false);
   const [battleComplete, setBattleComplete] = useState(false);
   const [battleWon, setBattleWon] = useState(false);
   const { tokenIds } = useNFTInventory();
@@ -125,6 +130,35 @@ export default function TradeDialog({ isOpen, onClose, npcName }: TradeDialogPro
     }
   };
 
+  const handleBuyNFT = async () => {
+    try {
+      if (!selectedNFT || nftPrice === null) {
+        console.error("No NFT or price selected");
+        return;
+      }
+
+      const finalPrice = battleWon ? Math.floor(nftPrice * 0.7) : nftPrice;
+      console.log("Buying NFT:", selectedNFT, "for price:", finalPrice);
+      
+      await mintCustomNFT(selectedNFT, finalPrice);
+      
+      toast({
+        title: "Success!",
+        description: `Successfully minted NFT #${selectedNFT}${battleWon ? ' with discount!' : ''}`,
+        variant: "default",
+      });
+
+      onClose();
+    } catch (error) {
+      console.error("Error buying NFT:", error);
+      toast({
+        title: "Error",
+        description: "Failed to mint NFT. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const discountedPrice = nftPrice ? Math.floor(nftPrice * 0.7) : null;
 
   return (
@@ -177,10 +211,8 @@ export default function TradeDialog({ isOpen, onClose, npcName }: TradeDialogPro
                       {battleComplete ? (
                         <Button
                           variant="outline"
-                          onClick={() => {
-                            // TODO: Implement buy functionality
-                            console.log(`Buying NFT #${selectedNFT}`);
-                          }}
+                          onClick={handleBuyNFT}
+                          disabled={!selectedNFT}
                         >
                           Buy NFT {battleWon ? 'with Discount' : ''}
                         </Button>
