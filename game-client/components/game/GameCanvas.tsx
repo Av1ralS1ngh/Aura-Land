@@ -6,9 +6,12 @@ import { GameScene } from './GameScene';
 
 interface GameCanvasProps {
   isPaused?: boolean;
+  onPause?: () => void;
+  onResume?: () => void;
+  onOpenTrade?: (npcName: string) => void;
 }
 
-export default function GameCanvas({ isPaused = false }: GameCanvasProps) {
+export default function GameCanvas({ isPaused = false, onPause, onResume, onOpenTrade }: GameCanvasProps) {
   const gameRef = useRef<Phaser.Game | null>(null);
   const sceneRef = useRef<GameScene | null>(null);
 
@@ -37,11 +40,26 @@ export default function GameCanvas({ isPaused = false }: GameCanvasProps) {
         }
       };
 
-      gameRef.current = new Phaser.Game(config);
+      const game = new Phaser.Game(config);
+      gameRef.current = game;
 
-      // Store reference to the scene
-      gameRef.current.events.once('ready', () => {
-        sceneRef.current = gameRef.current?.scene.getScene('GameScene') as GameScene;
+      // Get scene reference after creation
+      game.events.on('ready', () => {
+        const scene = game.scene.getScene('GameScene') as GameScene;
+        sceneRef.current = scene;
+
+        // Add event listeners
+        scene.events.on('pause', () => {
+          onPause?.();
+        });
+
+        scene.events.on('resume', () => {
+          onResume?.();
+        });
+
+        scene.events.on('openTradeDialog', (npcName: string) => {
+          onOpenTrade?.(npcName);
+        });
       });
 
       // Handle resize
@@ -57,16 +75,13 @@ export default function GameCanvas({ isPaused = false }: GameCanvasProps) {
 
       return () => {
         window.removeEventListener('resize', handleResize);
-        if (gameRef.current) {
-          gameRef.current.destroy(true);
-          gameRef.current = null;
-          sceneRef.current = null;
-        }
+        game.destroy(true);
+        gameRef.current = null;
+        sceneRef.current = null;
       };
     }
   }, []);
 
-  // Handle pause state changes
   useEffect(() => {
     if (sceneRef.current) {
       if (isPaused) {
@@ -78,8 +93,8 @@ export default function GameCanvas({ isPaused = false }: GameCanvasProps) {
   }, [isPaused]);
 
   return (
-    <div className="flex justify-center items-center h-full">
-      <div id="game-container" className="rounded-lg overflow-hidden shadow-2xl" />
+    <div className="w-full h-full">
+      <div id="game-container" className="rounded-lg overflow-hidden shadow-2xl w-full h-full" />
     </div>
   );
 }
