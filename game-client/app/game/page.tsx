@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import MobileError from '@/components/MobileError';
 import CharacterSelectionModal from '@/components/game/CharacterSelectionModal';
+import GameCanvas from '@/components/game/GameCanvas';
 import { BlockchainProvider } from '@/lib/context/BlockchainContext';
 
 export default function GamePage() {
@@ -38,10 +39,9 @@ export default function GamePage() {
           onClose={() => setShowCharacterModal(false)} 
         />
         
-        {/* Game content will be added here */}
-        <div className="p-4">
-          <h1 className="text-2xl font-bold">Game World</h1>
-          {/* Add game canvas/content here */}
+        {/* Game content */}
+        <div className="w-full h-screen">
+          {!showCharacterModal && <GameCanvas />}
         </div>
       </div>
     </BlockchainProvider>
