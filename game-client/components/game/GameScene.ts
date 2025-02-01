@@ -25,6 +25,9 @@ export class GameScene extends Phaser.Scene {
   private playerSpeed: number = 200;
   private playerStrength: number = 20;
   private isGameOver: boolean = false;
+  private isPaused: boolean = false;
+  private pauseMenu!: Phaser.GameObjects.Container;
+  private pauseOverlay!: Phaser.GameObjects.Graphics;
 
   constructor() {
     super({ key: 'GameScene' });
@@ -74,10 +77,12 @@ export class GameScene extends Phaser.Scene {
     this.enemies = this.physics.add.group();
     this.bosses = this.physics.add.group();
     this.collectables = this.physics.add.group();
-    this.playerAttacks = this.physics.add.group();
     this.corpses = this.physics.add.group();
     this.obstacles = this.physics.add.staticGroup();
 
+    // Create attack groups
+    this.playerAttacks = this.physics.add.group();
+    
     // Create environment
     this.generateGrid(worldSize);
     this.createBackground(worldSize);
@@ -102,6 +107,9 @@ export class GameScene extends Phaser.Scene {
 
     // Setup UI
     this.showLabels();
+
+    // Create pause menu
+    this.createPauseMenu();
   }
 
   private createBackground(worldSize: number) {
@@ -165,6 +173,11 @@ export class GameScene extends Phaser.Scene {
       attack: Phaser.Input.Keyboard.KeyCodes.SPACE,
       spell: Phaser.Input.Keyboard.KeyCodes.SHIFT
     });
+
+    // Add ESC key for pause
+    this.input.keyboard.on('keydown-ESC', () => {
+      this.togglePause();
+    });
   }
 
   private setupCollisions() {
@@ -177,8 +190,89 @@ export class GameScene extends Phaser.Scene {
     this.physics.add.collider(this.playerAttacks, this.obstacles, (attack) => attack.destroy());
   }
 
+  private createPauseMenu() {
+    // Create a semi-transparent overlay
+    this.pauseOverlay = this.add.graphics();
+    this.pauseOverlay.fillStyle(0x000000, 0.7);
+    this.pauseOverlay.fillRect(0, 0, this.cameras.main.width, this.cameras.main.height);
+    this.pauseOverlay.setScrollFactor(0);
+    this.pauseOverlay.setDepth(1000);
+    this.pauseOverlay.setVisible(false);
+
+    // Create pause menu container
+    this.pauseMenu = this.add.container(this.cameras.main.centerX, this.cameras.main.centerY);
+    this.pauseMenu.setDepth(1001);
+    this.pauseMenu.setScrollFactor(0);
+
+    // Add pause text
+    const pauseText = this.add.text(0, -100, 'GAME PAUSED', {
+      fontSize: '32px',
+      color: '#ffffff',
+      fontStyle: 'bold'
+    });
+    pauseText.setOrigin(0.5);
+
+    // Add controls text
+    const controlsText = this.add.text(0, 0, 
+      'Controls:\n\n' +
+      'WASD - Move\n' +
+      'SPACE - Attack\n' +
+      'SHIFT - Cast Spell\n' +
+      'ESC - Pause/Unpause',
+      {
+        fontSize: '20px',
+        color: '#ffffff',
+        align: 'center'
+      }
+    );
+    controlsText.setOrigin(0.5);
+
+    // Add resume text
+    const resumeText = this.add.text(0, 100, 'Press ESC to resume', {
+      fontSize: '24px',
+      color: '#ffffff'
+    });
+    resumeText.setOrigin(0.5);
+
+    // Add all elements to the container
+    this.pauseMenu.add([pauseText, controlsText, resumeText]);
+    this.pauseMenu.setVisible(false);
+  }
+
+  private togglePause() {
+    this.isPaused = !this.isPaused;
+    
+    if (this.isPaused) {
+      // Pause the game
+      this.physics.pause();
+      this.pauseOverlay.setVisible(true);
+      this.pauseMenu.setVisible(true);
+      
+      // Stop any ongoing animations
+      this.anims.pauseAll();
+      
+      // Disable game controls but keep ESC enabled
+      Object.values(this.controls).forEach(key => {
+        key.enabled = false;
+      });
+    } else {
+      // Resume the game
+      this.physics.resume();
+      this.pauseOverlay.setVisible(false);
+      this.pauseMenu.setVisible(false);
+      
+      // Resume animations
+      this.anims.resumeAll();
+      
+      // Re-enable all controls
+      Object.values(this.controls).forEach(key => {
+        key.enabled = true;
+      });
+    }
+  }
+
   update() {
-    if (this.isGameOver) return;
+    if (this.isGameOver || this.isPaused) return;
 
     this.handlePlayerMovement();
     this.handleEnemyMovement();
