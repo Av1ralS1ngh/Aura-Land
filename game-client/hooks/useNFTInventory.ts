@@ -60,7 +60,7 @@ export function useNFTInventory() {
           // Fetch metadata for each owned token using tokenURI from contract
           const metadataPromises = ownedTokenIds.map(async (id) => {
             try {
-              const uri = await tokenURI(id);
+              const uri = await tokenURI(id,signer);
               const response = await fetch(uri);
               if (!response.ok) throw new Error(`Failed to fetch metadata for token ${id}`);
               return { id, metadata: await response.json() };

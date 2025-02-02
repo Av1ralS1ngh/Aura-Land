@@ -717,6 +717,11 @@ export class GameScene extends Phaser.Scene {
     this.gold += 10;
     this.xp += 5;
     
+    // Dispatch gold update event
+    window.dispatchEvent(new CustomEvent('goldUpdate', {
+      detail: { gold: this.gold }
+    }));
+    
     if (this.xp >= this.xpToNext) {
       this.levelUp();
     }
