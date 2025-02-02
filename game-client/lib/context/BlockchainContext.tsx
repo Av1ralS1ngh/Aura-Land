@@ -41,7 +41,7 @@ export function BlockchainProvider({ children }: { children: React.ReactNode }) 
       );
 
       // Estimate gas for mint
-      const gasEstimate = await contract.methods.mint(user.wallet.address, "5")
+      const gasEstimate = await contract.methods.mint(user.wallet.address, "650")
         .estimateGas({ from: user.wallet.address });
 
       // Add 20% buffer to gas estimate
@@ -49,7 +49,7 @@ export function BlockchainProvider({ children }: { children: React.ReactNode }) 
         (BigInt(gasEstimate) * BigInt(20) / BigInt(100));
 
       // Call mint function with 5000 tokens (with 18 decimals)
-      const tx = await contract.methods.mint(user.wallet.address, "500")
+      const tx = await contract.methods.mint(user.wallet.address, "650")
         .send({ 
           from: user.wallet.address,
           gas: gasWithBuffer.toString()
@@ -65,7 +65,6 @@ export function BlockchainProvider({ children }: { children: React.ReactNode }) 
   }, [user?.wallet?.address]);
 
   const mintNFTs = useCallback(async (getSigner: () => Promise<any>) => {
-    return;
     if (!user?.wallet?.address) {
       throw new Error('Wallet not connected');
     }
