@@ -3,6 +3,10 @@ import { ConstantColorFactor } from 'three';
 
 export class GameScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite;
+  private playerLabel!: Phaser.GameObjects.Text;
+  private otherPlayers: Map<string, { sprite: Phaser.Physics.Arcade.Sprite, label: Phaser.GameObjects.Text }> = new Map();
+  private onPositionUpdate?: (x: number, y: number) => void;
+  private playerId: string = '';
   private controls!: any;
   private playerAttacks!: Phaser.Physics.Arcade.Group;
   private enemies!: Phaser.Physics.Arcade.Group;
@@ -36,11 +40,125 @@ export class GameScene extends Phaser.Scene {
   private healthBarPlayer!: Phaser.GameObjects.Graphics;
   private healthBars: { [key: string]: Phaser.GameObjects.Graphics } = {};
   private npcHealth: number = 100;
+  private socket: any;
+  private currentRoom: string | null = null;
 
   constructor() {
     super({ key: 'GameScene' });
+    // Get socket and room from window object
+    this.socket = (window as any).gameSocket;
+    this.currentRoom = (window as any).gameCurrentRoom;
     // Expose the game scene instance globally
     (window as any).gameScene = this;
+  }
+
+  setPositionUpdateCallback(callback: (x: number, y: number) => void) {
+    this.onPositionUpdate = callback;
+  }
+
+  getPlayerId(): string {
+    return this.playerId;
+  }
+
+  setPlayerId(id: string) {
+    this.playerId = id;
+  }
+
+  addOtherPlayer(playerId: string, playerName: string, x: number, y: number) {
+    // Check if physics system is ready
+    if (!this.physics || !this.physics.add) {
+      console.error('Physics system not ready');
+      return;
+    }
+
+    // Remove existing player if any
+    this.removeOtherPlayer(playerId);
+    
+    try {
+      // Create new player sprite
+      const sprite = this.physics.add.sprite(x, y, 'characters', 0);
+      if (!sprite) {
+        console.error('Failed to create sprite');
+        return;
+      }
+      
+      sprite.setCollideWorldBounds(true);
+      
+      // Create player label
+      const label = this.add.text(x, y - 20, playerName, {
+        fontSize: '14px',
+        color: '#ffffff',
+        backgroundColor: '#000000',
+        padding: { x: 4, y: 2 }
+      });
+      label.setOrigin(0.5);
+      
+      // Add to other players map
+      this.otherPlayers.set(playerId, { sprite, label });
+      
+      // Add collider with player if player exists
+      if (this.player) {
+        this.physics.add.collider(this.player, sprite);
+      }
+      
+      // Add collider with obstacles if obstacles exist
+      if (this.obstacles) {
+        this.physics.add.collider(sprite, this.obstacles);
+      }
+    } catch (error) {
+      console.error('Error adding other player:', error);
+    }
+  }
+
+  removeOtherPlayer(playerId: string) {
+    const player = this.otherPlayers.get(playerId);
+    if (player) {
+      player.sprite.destroy();
+      player.label.destroy();
+      this.otherPlayers.delete(playerId);
+    }
+  }
+
+  updateOtherPlayerPosition(playerId: string, x: number, y: number) {
+    const player = this.otherPlayers.get(playerId);
+    if (player) {
+      const sprite = player.sprite;
+      const label = player.label;
+      
+      // Calculate movement direction
+      const dx = x - sprite.x;
+      const dy = y - sprite.y;
+      
+      // Update position
+      sprite.setPosition(x, y);
+      label.setPosition(x, y - 20);
+      
+      // Update animation based on movement
+      if (Math.abs(dx) > Math.abs(dy)) {
+        if (dx > 0) {
+          sprite.anims.play('walk-right', true);
+        } else {
+          sprite.anims.play('walk-left', true);
+        }
+      } else if (dy !== 0) {
+        if (dy > 0) {
+          sprite.anims.play('walk-down', true);
+        } else {
+          sprite.anims.play('walk-up', true);
+        }
+      } else {
+        // If not moving, play idle animation
+        const currentAnim = sprite.anims.currentAnim;
+        if (currentAnim) {
+          const direction = currentAnim.key.split('-')[1];
+          sprite.anims.play(`idle-${direction}`, true);
+        }
+      }
+    }
+  }
+
+  getOtherPlayerIds(): string[] {
+    return Array.from(this.otherPlayers.keys());
   }
 
   preload() {
@@ -122,6 +240,15 @@ export class GameScene extends Phaser.Scene {
 
     // Create pause menu
     this.createPauseMenu();
+
+    // Create player label
+    this.playerLabel = this.add.text(0, 0, 'You', {
+      fontSize: '14px',
+      color: '#ffffff',
+      backgroundColor: '#000000',
+      padding: { x: 4, y: 2 }
+    });
+    this.playerLabel.setOrigin(0.5);
   }
 
   private createBackground(worldSize: number) {
@@ -297,11 +424,48 @@ export class GameScene extends Phaser.Scene {
   update() {
     if (this.isGameOver || this.isPaused) return;
 
-    this.handlePlayerMovement();
-    if (!this.isBattling) {
-      this.handleEnemyMovement();
-      this.checkNPCInteraction();
+    // Update player movement
+    if (this.player && this.controls) {
+      let velocityX = 0;
+      let velocityY = 0;
+
+      if (this.controls.left.isDown) {
+        velocityX = -this.playerSpeed;
+        this.player.anims.play('walk-left', true);
+      } else if (this.controls.right.isDown) {
+        velocityX = this.playerSpeed;
+        this.player.anims.play('walk-right', true);
+      }
+
+      if (this.controls.up.isDown) {
+        velocityY = -this.playerSpeed;
+        if (velocityX === 0) this.player.anims.play('walk-up', true);
+      } else if (this.controls.down.isDown) {
+        velocityY = this.playerSpeed;
+        if (velocityX === 0) this.player.anims.play('walk-down', true);
+      }
+
+      this.player.setVelocity(velocityX, velocityY);
+
+      // Update player label position
+      if (this.playerLabel) {
+        this.playerLabel.setPosition(this.player.x, this.player.y - 20);
+      }
+
+      // Emit position update if player moved
+      if ((velocityX !== 0 || velocityY !== 0) && this.onPositionUpdate) {
+        this.onPositionUpdate(this.player.x, this.player.y);
+      }
+
+      if (velocityX === 0 && velocityY === 0) {
+        const currentAnim = this.player.anims.currentAnim;
+        if (currentAnim) {
+          const direction = currentAnim.key.split('-')[1];
+          this.player.anims.play(`idle-${direction}`, true);
+        }
+      }
     }
+
     this.handleAttacks();
     this.updateLabels();
     this.checkGameOver();

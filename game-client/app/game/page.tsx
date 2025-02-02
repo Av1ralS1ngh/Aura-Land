@@ -10,12 +10,15 @@ import AchievementDialog from '@/components/game/AchievementDialog';
 import GameBackground from '@/components/game/GameBackground';
 import GameWallet from '@/components/wallet/GameWallet';
 import GameInventory from '@/components/inventory/GameInventory';
+import RoomJoinDialog from '@/components/game/RoomJoinDialog';
 import { BlockchainProvider } from '@/lib/context/BlockchainContext';
+import { MultiplayerProvider, useMultiplayer } from '@/lib/context/MultiplayerContext';
 import { motion } from 'framer-motion';
 
-export default function GamePage() {
+function GameContent() {
   const [isMobile, setIsMobile] = useState(false);
   const [showCharacterModal, setShowCharacterModal] = useState(true);
+  const [showRoomDialog, setShowRoomDialog] = useState(false);
   const [isGamePaused, setIsGamePaused] = useState(false);
   const [showTradeDialog, setShowTradeDialog] = useState(false);
   const [tradingNPC, setTradingNPC] = useState('');
@@ -23,6 +26,7 @@ export default function GamePage() {
   const [playerGold, setPlayerGold] = useState(0);
   const [showGoldAchievement, setShowGoldAchievement] = useState(false);
   const { ready, authenticated } = usePrivy();
+  const { currentRoom, leaveRoom } = useMultiplayer();
 
   useEffect(() => {
     const checkDevice = () => {
@@ -39,155 +43,146 @@ export default function GamePage() {
     return () => window.removeEventListener('resize', checkDevice);
   }, []);
 
-  useEffect(() => {
-    // Listen for battle state changes
-    const handleBattleState = (event: CustomEvent) => {
-      setIsBattling(event.detail.isBattling);
-    };
-
-    window.addEventListener('battleStateChange' as any, handleBattleState);
-    return () => {
-      window.removeEventListener('battleStateChange' as any, handleBattleState);
-    };
-  }, []);
-
-  useEffect(() => {
-    // Listen for gold updates
-    const handleGoldUpdate = (event: CustomEvent) => {
-      const newGold = event.detail.gold;
-      setPlayerGold(newGold);
-      
-      // Check for 250 gold achievement
-      if (newGold >= 250 && !showGoldAchievement) {
-        setShowGoldAchievement(true);
-      }
-    };
-
-    window.addEventListener('goldUpdate' as any, handleGoldUpdate);
-    return () => {
-      window.removeEventListener('goldUpdate' as any, handleGoldUpdate);
-    };
-  }, [showGoldAchievement]);
-
-  const handleNFTClick = () => {
-    setIsGamePaused(true);
-  };
-
-  const handleNFTModalClose = () => {
-    setIsGamePaused(false);
-  };
-
-  const handleGamePause = () => {
-    setIsGamePaused(true);
-  };
-
-  const handleGameResume = () => {
-    setIsGamePaused(false);
-  };
-
   if (!ready) return null;
   if (!authenticated) return <div>Please connect your wallet to play</div>;
   if (isMobile) return <MobileError />;
 
   return (
-    <BlockchainProvider>
-      <div className="relative w-full h-screen overflow-hidden">
-        {/* Background */}
-        <GameBackground />
-
-        {/* Main content */}
-        <div className="relative z-10 flex w-full h-full">
-          {/* Game Container with centering wrapper */}
-          <motion.div 
-            className="relative"
-            animate={{ 
-              width: isBattling ? '100%' : '70%',
-            }}
-            transition={{ 
-              duration: 0.5, 
-              ease: "easeInOut" 
-            }}
-          >
-            {/* Game Canvas Container */}
-            <motion.div 
-              className="h-full relative"
-              animate={{ 
-                width: isBattling ? '100%' : '100%',
-                left: isBattling ? '50%' : '0%',
-                x: isBattling ? '-50%' : '0%',
-              }}
-              transition={{ 
-                duration: 0.5, 
-                ease: "easeInOut",
-              }}
+    <div className="relative w-full h-screen overflow-hidden">
+      {/* Room Controls */}
+      <div className="absolute top-4 right-4 z-20 flex items-center gap-4">
+        {currentRoom ? (
+          <>
+            <div className="bg-gray-800 text-white px-4 py-2 rounded-md">
+              Room: {currentRoom.id}
+            </div>
+            <button
+              onClick={leaveRoom}
+              className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-500"
             >
-              <div className="h-full" style={{ 
-                width: isBattling ? '100%' : '100%', 
-                margin: isBattling ? '0 auto' : '0',
-                justifyContent: isBattling ? 'center' : 'flex-start',
-                alignSelf: isBattling ? 'center' : 'flex-start',
-              }}>
-                <GameCanvas 
-                  isPaused={isGamePaused} 
-                  onPause={() => setIsGamePaused(true)}
-                  onResume={() => setIsGamePaused(false)}
-                  onOpenTrade={(npcName: string) => {
-                    setTradingNPC(npcName);
-                    setShowTradeDialog(true);
-                  }}
-                />
-              </div>  
-            </motion.div>
-          </motion.div>
+              Leave Room
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={() => setShowRoomDialog(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-500"
+          >
+            Join Room
+          </button>
+        )}
+      </div>
 
-          {/* Sidebar */}
+      {/* Background */}
+      <GameBackground />
+
+      {/* Main content */}
+      <div className="relative z-10 flex w-full h-full">
+        {/* Game Container with centering wrapper */}
+        <motion.div 
+          className="relative"
+          animate={{ 
+            width: isBattling ? '100%' : '70%',
+          }}
+          transition={{ 
+            duration: 0.5, 
+            ease: "easeInOut" 
+          }}
+        >
+          {/* Game Canvas Container */}
           <motion.div 
-            className="w-[30%] min-w-[300px] h-full bg-black bg-opacity-50 flex flex-col"
+            className="h-full relative"
             animate={{ 
-              x: isBattling ? '100%' : 0,
-              opacity: isBattling ? 0 : 1
+              width: isBattling ? '100%' : '100%',
+              left: isBattling ? '50%' : '0%',
+              x: isBattling ? '-50%' : '0%',
             }}
             transition={{ 
               duration: 0.5, 
               ease: "easeInOut",
-              opacity: { duration: 0.3 }
             }}
           >
-            {/* Inventory section */}
-            <div className="flex-1 p-4 min-h-0 flex flex-col">
-              <h2 className="text-xl font-bold mb-4 text-white">Inventory</h2>
-              <div className="flex-1 min-h-0 rounded-lg bg-gray-800 bg-opacity-50 p-4 overflow-y-auto">
-                <GameInventory onNFTClick={handleNFTClick} />
-              </div>
-            </div>
-
-            {/* Wallet section */}
-            <div className="p-4">
-              <GameWallet />
-            </div>
+            <div className="h-full z-10" style={{ 
+              width: isBattling ? '100%' : '100%', 
+              margin: isBattling ? '0 auto' : '0',
+              justifyContent: isBattling ? 'center' : 'flex-start',
+              alignSelf: isBattling ? 'center' : 'flex-start',
+            }}>
+              <GameCanvas 
+                isPaused={isGamePaused} 
+                onPause={() => setIsGamePaused(true)}
+                onResume={() => setIsGamePaused(false)}
+                onOpenTrade={(npcName: string) => {
+                  setTradingNPC(npcName);
+                  setShowTradeDialog(true);
+                }}
+              />
+            </div>  
           </motion.div>
-        </div>
-        <CharacterSelectionModal
-          isOpen={showCharacterModal}
-          onClose={() => setShowCharacterModal(false)}
-        />
-        {/* Trade Dialog */}
-        <TradeDialog
-          isOpen={showTradeDialog}
-          onClose={() => {
-            setShowTradeDialog(false);
-            setIsGamePaused(false);
+        </motion.div>
+
+        {/* Sidebar */}
+        <motion.div 
+          className="w-[30%] min-w-[300px] h-full bg-black bg-opacity-50 flex flex-col"
+          animate={{ 
+            x: isBattling ? '100%' : 0,
+            opacity: isBattling ? 0 : 1
           }}
-          npcName={tradingNPC}
-        />
-        <AchievementDialog
-          isOpen={showGoldAchievement}
-          onClose={() => setShowGoldAchievement(false)}
-          goldAmount={playerGold}
-          onGamePause={handleGamePause}
-          onGameResume={handleGameResume}
-        />
+          transition={{ 
+            duration: 0.5, 
+            ease: "easeInOut",
+            opacity: { duration: 0.3 }
+          }}
+        >
+          {/* Inventory section */}
+          <div className="flex-1 p-4 min-h-0 flex flex-col">
+            <h2 className="text-xl font-bold mb-4 text-white">Inventory</h2>
+            <div className="flex-1 min-h-0 rounded-lg bg-gray-800 bg-opacity-50 p-4 overflow-y-auto">
+              <GameInventory onNFTClick={() => setIsGamePaused(true)} />
+            </div>
+          </div>
+
+          {/* Wallet section */}
+          <div className="p-4">
+            <GameWallet />
+          </div>
+        </motion.div>
       </div>
+
+      <CharacterSelectionModal
+        isOpen={showCharacterModal}
+        onClose={() => setShowCharacterModal(false)}
+      />
+      {/* Trade Dialog */}
+      <TradeDialog
+        isOpen={showTradeDialog}
+        onClose={() => {
+          setShowTradeDialog(false);
+          setIsGamePaused(false);
+        }}
+        npcName={tradingNPC}
+      />
+      <AchievementDialog
+        isOpen={showGoldAchievement}
+        onClose={() => setShowGoldAchievement(false)}
+        goldAmount={playerGold}
+        onGamePause={() => setIsGamePaused(true)}
+        onGameResume={() => setIsGamePaused(false)}
+      />
+      <RoomJoinDialog
+        isOpen={showRoomDialog}
+        onClose={() => setShowRoomDialog(false)}
+      />
+    </div>
+  );
+}
+
+export default function GamePage() {
+  return (
+    <BlockchainProvider>
+      <MultiplayerProvider>
+        <GameContent />
+      </MultiplayerProvider>
     </BlockchainProvider>
   );
 }

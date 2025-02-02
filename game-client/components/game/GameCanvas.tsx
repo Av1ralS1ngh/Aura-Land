@@ -1,39 +1,37 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import Phaser from 'phaser';
+import { useMultiplayer } from '@/lib/context/MultiplayerContext';
 import { GameScene } from './GameScene';
 
 interface GameCanvasProps {
-  isPaused?: boolean;
-  onPause?: () => void;
-  onResume?: () => void;
-  onOpenTrade?: (npcName: string) => void;
-  onStartBattle?: () => void;
-  onEndBattle?: () => void;
+  isPaused: boolean;
+  onPause: () => void;
+  onResume: () => void;
+  onOpenTrade: (npcName: string) => void;
 }
 
-export default function GameCanvas({ 
-  isPaused = false, 
-  onPause, 
-  onResume, 
+export default function GameCanvas({
+  isPaused,
+  onPause,
+  onResume,
   onOpenTrade,
-  onStartBattle,
-  onEndBattle 
 }: GameCanvasProps) {
   const gameRef = useRef<Phaser.Game | null>(null);
   const sceneRef = useRef<GameScene | null>(null);
+  const { players, updatePosition, socket, currentRoom } = useMultiplayer();
 
   useEffect(() => {
     if (typeof window !== 'undefined' && !gameRef.current) {
-      // Calculate game size (70% of viewport width, maintain 4:3 ratio)
-      const gameWidth = Math.min(window.innerWidth * 0.7, 1024);
-      const gameHeight = (gameWidth / 4) * 3;
+      // Set socket and room on window object for the game scene
+      (window as any).gameSocket = socket;
+      (window as any).gameCurrentRoom = currentRoom;
 
       const config: Phaser.Types.Core.GameConfig = {
         type: Phaser.AUTO,
-        width: gameWidth,
-        height: gameHeight,
+        width: 800,
+        height: 600,
         physics: {
           default: 'arcade',
           arcade: {
@@ -46,78 +44,71 @@ export default function GameCanvas({
         scale: {
           mode: Phaser.Scale.FIT,
           autoCenter: Phaser.Scale.CENTER_BOTH
-        }
+        },
+        backgroundColor: '#2d2d2d',
+        pixelArt: true,
+        roundPixels: true
       };
 
       const game = new Phaser.Game(config);
       gameRef.current = game;
 
-      // Get scene reference after creation
-      game.events.on('ready', () => {
-        const scene = game.scene.getScene('GameScene') as GameScene;
-        sceneRef.current = scene;
-
-        // Add event listeners
-        scene.events.on('pause', () => {
-          onPause?.();
-        });
-
-        scene.events.on('resume', () => {
-          onResume?.();
-        });
-
-        scene.events.on('openTradeDialog', (npcName: string) => {
-          onOpenTrade?.(npcName);
-        });
-
-        scene.events.on('startBattle', () => {
-          onStartBattle?.();
-        });
-
-        scene.events.on('endBattle', () => {
-          onEndBattle?.();
-        });
-      });
-
-      // Handle resize
-      const handleResize = () => {
-        if (gameRef.current) {
-          const newWidth = Math.min(window.innerWidth * 0.7, 1024);
-          const newHeight = (newWidth / 4) * 3;
-          gameRef.current.scale.resize(newWidth, newHeight);
+      // Get reference to the scene
+      game.events.once('ready', () => {
+        sceneRef.current = game.scene.getScene('GameScene') as GameScene;
+        if (sceneRef.current) {
+          sceneRef.current.events.on('positionUpdate', updatePosition);
         }
-      };
-
-      window.addEventListener('resize', handleResize);
-
-      return () => {
-        window.removeEventListener('resize', handleResize);
-        game.destroy(true);
-        gameRef.current = null;
-        sceneRef.current = null;
-      };
+      });
     }
-  }, []);
 
-  useEffect(() => {
-    if (sceneRef.current) {
-      (window as any).gameScene = sceneRef.current;
-    }
-  }, [sceneRef.current]);
+    return () => {
+      gameRef.current?.destroy(true);
+      gameRef.current = null;
+    };
+  }, [socket, currentRoom]);
 
+  // Handle game pause/resume
   useEffect(() => {
     if (sceneRef.current) {
       if (isPaused) {
-        sceneRef.current.pauseGame();
+        sceneRef.current.scene.pause();
       } else {
-        sceneRef.current.resumeGame();
+        sceneRef.current.scene.resume();
       }
     }
   }, [isPaused]);
 
+  // Update other players when they change
+  useEffect(() => {
+    if (sceneRef.current) {
+      const scene = sceneRef.current;
+      
+      // Clear all players first
+      const currentPlayers = new Set(scene.getOtherPlayerIds());
+      players.forEach((player) => {
+        if (player.id !== scene.getPlayerId()) {
+          if (!currentPlayers.has(player.id)) {
+            // Add new player
+            scene.addOtherPlayer(player.id, player.name, player.position.x, player.position.y);
+          } else {
+            // Update existing player
+            scene.updateOtherPlayerPosition(player.id, player.position.x, player.position.y);
+          }
+          currentPlayers.delete(player.id);
+        }
+      });
+
+      // Remove players that are no longer in the game
+      currentPlayers.forEach(playerId => {
+        scene.removeOtherPlayer(playerId);
+      });
+    }
+  }, [players]);
+
   return (
-    <div className="w-full h-full">
-      <div id="game-container" className="rounded-lg overflow-hidden shadow-2xl w-full h-full" />
+    <div id="game-container" className="w-full h-full relative">
+      <div id="game-canvas" className="w-full h-full" />
     </div>
   );
 }

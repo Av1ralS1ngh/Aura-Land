@@ -81,14 +81,14 @@ export function BlockchainProvider({ children }: { children: React.ReactNode }) 
       console.log(contract);
       console.log(contract.methods);
       const gasEstimate = await contract.methods.mint("5")
-        .estimateGas({ from: user.wallet.address });
+        .estimateGas({ from: user?.wallet?.address });
 
       const gasWithBuffer = BigInt(gasEstimate) + 
         (BigInt(gasEstimate) * BigInt(20) / BigInt(100));
 
       const tx = await contract.methods.mint("5")
         .send({ 
-          from: user.wallet.address,
+          from: user?.wallet?.address,
           gas: gasWithBuffer.toString()
         });
 
