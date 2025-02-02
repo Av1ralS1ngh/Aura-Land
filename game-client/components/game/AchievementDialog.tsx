@@ -67,10 +67,10 @@ export default function AchievementDialog({
           <DialogTitle className="text-2xl font-bold text-center text-white">
             Gold Master Achievement Unlocked! 🏆
           </DialogTitle>
-          <div className="text-center mt-4">
-            <p className="text-xl">Congratulations!</p>
-            <p className="text-lg mt-2">You've accumulated {goldAmount} gold!</p>
-            <p className="text-sm mt-4">Claim your Gold Master NFT to commemorate this achievement.</p>
+          <div className="text-center mt-4 text-white">
+            <p className="text-xl text-white">Congratulations!</p>
+            <p className="text-lg mt-2 text-white">You've accumulated {goldAmount} gold!</p>
+            <p className="text-sm mt-4 text-white">Claim your Gold Master NFT to commemorate this achievement.</p>
           </div>
         </DialogHeader>
         <div className="flex flex-col items-center gap-4 py-4">

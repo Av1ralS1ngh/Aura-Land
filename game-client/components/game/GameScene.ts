@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { ConstantColorFactor } from 'three';
+import multiplayerService from '@/lib/services/MultiplayerService';
 
 export class GameScene extends Phaser.Scene {
   private player!: Phaser.Physics.Arcade.Sprite;
@@ -104,7 +105,7 @@ export class GameScene extends Phaser.Scene {
     this.createPlayer();
 
     // Setup camera
-    this.cameras.main.startFollow(this.player);
+    this.cameras.main.startFollow(this.player, true, 0.09, 0.09);
     this.cameras.main.setBounds(0, 0, worldSize, worldSize);
 
     // Setup controls
@@ -122,6 +123,32 @@ export class GameScene extends Phaser.Scene {
 
     // Create pause menu
     this.createPauseMenu();
+
+    // Setup multiplayer after everything else is initialized
+    console.log('Setting up multiplayer in GameScene');
+    multiplayerService.setGameScene(this);
+    
+    // Join default room (you can modify this to join specific rooms)
+    multiplayerService.joinRoom('default');
+  }
+
+  update() {
+    if (this.isGameOver || this.isPaused) return;
+
+    // Handle player movement and send updates
+    this.handlePlayerMovement();
+    
+    if (!this.isBattling) {
+      this.handleEnemyMovement();
+      this.checkNPCInteraction();
+    }
+    
+    this.handleAttacks();
+    this.updateLabels();
+    this.checkGameOver();
+
+    // Update camera to follow player smoothly
+    this.cameras.main.startFollow(this.player, true, 0.09, 0.09);
   }
 
   private createBackground(worldSize: number) {
@@ -139,9 +166,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createPlayer() {
+    // Set initial position to center of the world
+    const worldSize = 1920;
     this.player = this.physics.add.sprite(
-      this.physics.world.bounds.centerX,
-      this.physics.world.bounds.centerY,
+      Math.random() * 1000 + 400, // Random starting position
+      Math.random() * 1000 + 400,
       'characters'
     );
     this.player.setScale(2);
@@ -294,19 +323,6 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  update() {
-    if (this.isGameOver || this.isPaused) return;
-
-    this.handlePlayerMovement();
-    if (!this.isBattling) {
-      this.handleEnemyMovement();
-      this.checkNPCInteraction();
-    }
-    this.handleAttacks();
-    this.updateLabels();
-    this.checkGameOver();
-  }
-
   private handleAttacks() {
     if (this.controls.attack.isDown && !this.player.attacking) {
       this.performSwordAttack();
@@ -337,6 +353,9 @@ export class GameScene extends Phaser.Scene {
     attack.damage = this.playerStrength;
     attack.lifespan = 200;
 
+    // Emit attack to server
+    multiplayerService.emitAttack();
+
     this.time.delayedCall(200, () => {
       this.player.attacking = false;
     });
@@ -364,6 +383,9 @@ export class GameScene extends Phaser.Scene {
       emitting: true,
       follow: spell
     });
+
+    // Emit spell cast to server
+    multiplayerService.emitSpell();
 
     // Cleanup when spell is destroyed
     spell.on('destroy', () => {
@@ -634,29 +656,46 @@ export class GameScene extends Phaser.Scene {
     const speed = 200;
     let velocityX = 0;
     let velocityY = 0;
+    let animation = this.player.anims.currentAnim?.key || 'player-down';
+    let moved = false;
     
     if (this.controls.left.isDown) {
       velocityX = -speed;
+      animation = 'player-left';
       this.player.play('player-left', true);
+      moved = true;
     } else if (this.controls.right.isDown) {
       velocityX = speed;
+      animation = 'player-right';
       this.player.play('player-right', true);
+      moved = true;
     }
 
     if (this.controls.up.isDown) {
       velocityY = -speed;
-      if (velocityX === 0) this.player.play('player-up', true);
+      if (velocityX === 0) {
+        animation = 'player-up';
+        this.player.play('player-up', true);
+      }
+      moved = true;
     } else if (this.controls.down.isDown) {
       velocityY = speed;
-      if (velocityX === 0) this.player.play('player-down', true);
+      if (velocityX === 0) {
+        animation = 'player-down';
+        this.player.play('player-down', true);
+      }
+      moved = true;
     }
 
     this.player.setVelocity(velocityX, velocityY);
     
     // Stop animation if not moving
-    if (velocityX === 0 && velocityY === 0) {
+    if (!moved) {
       this.player.anims.stop();
     }
+
+    // Send movement to server
+    multiplayerService.updatePlayerMovement(this.player.x, this.player.y, animation);
   }
 
   private handleEnemyMovement() {

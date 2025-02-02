@@ -139,7 +139,7 @@ export default function GameInventory({ onNFTClick }: GameInventoryProps) {
                   "transition-colors duration-200"
                 )}
               >
-                {isLocked ? "Locked" : `Skill: ${nft.skill}`}
+                {isLocked ? "Locked" : `Aura: ${nft.skill}`}
               </Badge>
             </div>
           </div>

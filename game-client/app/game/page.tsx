@@ -10,12 +10,14 @@ import AchievementDialog from '@/components/game/AchievementDialog';
 import GameBackground from '@/components/game/GameBackground';
 import GameWallet from '@/components/wallet/GameWallet';
 import GameInventory from '@/components/inventory/GameInventory';
+import RoomJoinModal from '@/components/game/RoomJoinModal';
 import { BlockchainProvider } from '@/lib/context/BlockchainContext';
 import { motion } from 'framer-motion';
 
 export default function GamePage() {
   const [isMobile, setIsMobile] = useState(false);
   const [showCharacterModal, setShowCharacterModal] = useState(true);
+  const [showRoomModal, setShowRoomModal] = useState(true);
   const [isGamePaused, setIsGamePaused] = useState(false);
   const [showTradeDialog, setShowTradeDialog] = useState(false);
   const [tradingNPC, setTradingNPC] = useState('');
@@ -58,7 +60,7 @@ export default function GamePage() {
       setPlayerGold(newGold);
       
       // Check for 250 gold achievement
-      if (newGold >= 250 && !showGoldAchievement) {
+      if (newGold == 250 && !showGoldAchievement) {
         setShowGoldAchievement(true);
       }
     };
@@ -170,6 +172,10 @@ export default function GamePage() {
         <CharacterSelectionModal
           isOpen={showCharacterModal}
           onClose={() => setShowCharacterModal(false)}
+        />
+        <RoomJoinModal
+          isOpen={!showCharacterModal && showRoomModal}
+          onClose={() => setShowRoomModal(false)}
         />
         {/* Trade Dialog */}
         <TradeDialog
