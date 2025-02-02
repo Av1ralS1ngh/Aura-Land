@@ -14,6 +14,7 @@ import { useLockedNFT } from '@/lib/context/LockedNFTContext';
 import { useToast } from '@/hooks/use-toast';
 import NFTSelectionDialog from './NFTSelectionDialog';
 import BattleScene from './BattleScene';
+import { usePrivyWallet } from '@/hooks/usePrivyWallet';
 
 interface TradeDialogProps {
   isOpen: boolean;
@@ -40,6 +41,7 @@ const npcDialogs = [
 
 export default function TradeDialog({ isOpen, onClose, npcName }: TradeDialogProps) {
   const { mintCustomNFT } = useBlockchain();
+  const {signer} = usePrivyWallet();
   const { lockNFT } = useLockedNFT();
   const { toast } = useToast();
   const [selectedNFT, setSelectedNFT] = useState<number | null>(null);
@@ -160,7 +162,7 @@ export default function TradeDialog({ isOpen, onClose, npcName }: TradeDialogPro
       const finalPrice = battleWon ? Math.floor(nftPrice * 0.7) : nftPrice;
       console.log("Buying NFT:", selectedNFT, "for price:", finalPrice);
       
-      await mintCustomNFT(selectedNFT, finalPrice);
+      await mintCustomNFT(selectedNFT, finalPrice, signer);
       
       toast({
         title: "Success!",

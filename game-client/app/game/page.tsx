@@ -6,6 +6,7 @@ import MobileError from '@/components/MobileError';
 import CharacterSelectionModal from '@/components/game/CharacterSelectionModal';
 import GameCanvas from '@/components/game/GameCanvas';
 import TradeDialog from '@/components/game/TradeDialog';
+import AchievementDialog from '@/components/game/AchievementDialog';
 import GameBackground from '@/components/game/GameBackground';
 import GameWallet from '@/components/wallet/GameWallet';
 import GameInventory from '@/components/inventory/GameInventory';
@@ -19,6 +20,8 @@ export default function GamePage() {
   const [showTradeDialog, setShowTradeDialog] = useState(false);
   const [tradingNPC, setTradingNPC] = useState('');
   const [isBattling, setIsBattling] = useState(false);
+  const [playerGold, setPlayerGold] = useState(0);
+  const [showGoldAchievement, setShowGoldAchievement] = useState(false);
   const { ready, authenticated } = usePrivy();
 
   useEffect(() => {
@@ -48,11 +51,37 @@ export default function GamePage() {
     };
   }, []);
 
+  useEffect(() => {
+    // Listen for gold updates
+    const handleGoldUpdate = (event: CustomEvent) => {
+      const newGold = event.detail.gold;
+      setPlayerGold(newGold);
+      
+      // Check for 250 gold achievement
+      if (newGold >= 250 && !showGoldAchievement) {
+        setShowGoldAchievement(true);
+      }
+    };
+
+    window.addEventListener('goldUpdate' as any, handleGoldUpdate);
+    return () => {
+      window.removeEventListener('goldUpdate' as any, handleGoldUpdate);
+    };
+  }, [showGoldAchievement]);
+
   const handleNFTClick = () => {
     setIsGamePaused(true);
   };
 
   const handleNFTModalClose = () => {
+    setIsGamePaused(false);
+  };
+
+  const handleGamePause = () => {
+    setIsGamePaused(true);
+  };
+
+  const handleGameResume = () => {
     setIsGamePaused(false);
   };
 
@@ -150,6 +179,13 @@ export default function GamePage() {
             setIsGamePaused(false);
           }}
           npcName={tradingNPC}
+        />
+        <AchievementDialog
+          isOpen={showGoldAchievement}
+          onClose={() => setShowGoldAchievement(false)}
+          goldAmount={playerGold}
+          onGamePause={handleGamePause}
+          onGameResume={handleGameResume}
         />
       </div>
     </BlockchainProvider>
