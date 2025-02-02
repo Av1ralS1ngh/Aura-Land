@@ -4,13 +4,16 @@ import React, { createContext, useContext, useCallback } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import Web3 from 'web3';
 import { CONTRACT_ABI_MINTER } from '../contracts/abi/token_minter';
-import { CONTRACT_ADDRESS_MINTER, CONTRACT_ADDRESS_NFT_MINTER } from '../contracts/contract-config';
+import { CONTRACT_ADDRESS_MINTER, CONTRACT_ADDRESS_NFT_MINTER, CONTRACT_ADDRESS_SOULBOUND_MINTER } from '../contracts/contract-config';
 import { CONTRACT_ABI_NFT_MINTER } from '../contracts/abi/nft_minter';
+import { CONTRACT_ABI_SOULBOUND_MINTER } from '../contracts/abi/soulbound';
 
 interface BlockchainContextType {
   mintTokens: (getSigner: () => Promise<any>) => Promise<string>;
   mintNFTs: (getSigner: () => Promise<any>) => Promise<string>;
-  tokenURI: (tokenId: string) => Promise<string>;
+  tokenURI: (tokenId: string, getSigner: () => Promise<any>) => Promise<string>;
+  mintCustomNFT: (tokenId: number, price: number, getSigner: () => Promise<any>) => Promise<any>;
+  mintSoulboundNFT: (getSigner: () => Promise<any>) => Promise<any>;
   isLoadingTokens: boolean;
   isLoadingNFTs: boolean;
 }
@@ -38,7 +41,7 @@ export function BlockchainProvider({ children }: { children: React.ReactNode }) 
       );
 
       // Estimate gas for mint
-      const gasEstimate = await contract.methods.mint(user.wallet.address, "5")
+      const gasEstimate = await contract.methods.mint(user.wallet.address, "650")
         .estimateGas({ from: user.wallet.address });
 
       // Add 20% buffer to gas estimate
@@ -46,7 +49,7 @@ export function BlockchainProvider({ children }: { children: React.ReactNode }) 
         (BigInt(gasEstimate) * BigInt(20) / BigInt(100));
 
       // Call mint function with 5000 tokens (with 18 decimals)
-      const tx = await contract.methods.mint(user.wallet.address, "1")
+      const tx = await contract.methods.mint(user.wallet.address, "650")
         .send({ 
           from: user.wallet.address,
           gas: gasWithBuffer.toString()
@@ -97,19 +100,18 @@ export function BlockchainProvider({ children }: { children: React.ReactNode }) 
     }
   }, [user?.wallet?.address]);
 
-  const tokenURI = useCallback(async (tokenId: string): Promise<string> => {
+  const tokenURI = useCallback(async (tokenId: string, getSigner: () => Promise<any>): Promise<string> => {
     if (!user?.wallet?.address) {
       throw new Error('Wallet not connected');
     }
 
     try {
-      const web3 = new Web3(window.ethereum);
+      const web3 = await getSigner();
       const contract = new web3.eth.Contract(
         CONTRACT_ABI_NFT_MINTER,
         CONTRACT_ADDRESS_NFT_MINTER
       );
 
-      // Get the token URI from the contract
       const uri = await contract.methods.tokenURI(tokenId).call();
       console.log(`Token URI for ID ${tokenId}:`, uri);
       return uri;
@@ -119,10 +121,92 @@ export function BlockchainProvider({ children }: { children: React.ReactNode }) 
     }
   }, [user?.wallet?.address]);
 
+  const mintCustomNFT = useCallback(async (tokenId: number, price: number, getSigner: () => Promise<any>) => {
+    try {
+      if (!user?.wallet?.address) {
+        throw new Error("Wallet not connected");
+      }
+
+      const web3 = await getSigner();
+      const nftMinterContract = new web3.eth.Contract(
+        CONTRACT_ABI_NFT_MINTER,
+        CONTRACT_ADDRESS_NFT_MINTER
+      );
+
+      const contract = new web3.eth.Contract(
+        CONTRACT_ABI_MINTER,
+        CONTRACT_ADDRESS_MINTER
+      );
+
+      // Convert price to string and ensure it's a whole number
+      const priceString = Math.floor(price).toString();
+
+      // First burn the tokens
+      const gasEstimate = await contract.methods
+        .burn(user.wallet.address, priceString)
+        .estimateGas({ from: user.wallet.address });
+
+      const gasWithBuffer = BigInt(gasEstimate) +
+        (BigInt(gasEstimate) * BigInt(20) / BigInt(100));
+
+      await contract.methods
+        .burn(user.wallet.address, priceString)
+        .send({ 
+          from: user.wallet.address,
+          gas: gasWithBuffer.toString()
+        });
+
+      // Then mint the NFT
+      const tx = await nftMinterContract.methods.mintNFTfromID(tokenId).send({ 
+        from: user.wallet.address,
+      });
+      
+      return tx;
+    } catch (error) {
+      console.error("Error minting NFT:", error);
+      throw error;
+    }
+  }, [user?.wallet?.address]);
+
+  const mintSoulboundNFT = async (signer: () => Promise<any>) => {
+    if (!user?.wallet?.address) {
+      console.error("No signer or address available");
+      return;
+    }
+
+    try {
+      // Replace with your soulbound contract address once added
+      const web3 = await signer();
+      const soulboundContract = new web3.eth.Contract(
+        CONTRACT_ABI_SOULBOUND_MINTER,
+        CONTRACT_ADDRESS_SOULBOUND_MINTER
+      );
+      const gasEstimate = await soulboundContract.methods
+      .mintNFT1(user.wallet.address)
+      .estimateGas({ from: user.wallet.address });
+
+    const gasWithBuffer = BigInt(gasEstimate) +
+      (BigInt(gasEstimate) * BigInt(20) / BigInt(100));
+
+      const tx = await soulboundContract.methods.mintNFT1(user.wallet.address).send({ 
+        from: user.wallet.address,
+        gas: gasWithBuffer.toString()
+      });
+      await tx.wait();
+
+      return tx;
+    } catch (error) {
+      console.error("Error minting soulbound NFT:", error);
+      throw error;
+    }
+  };
+
   const value = {
     mintTokens,
     mintNFTs,
     tokenURI,
+    mintCustomNFT,
+    mintSoulboundNFT,
     isLoadingTokens,
     isLoadingNFTs
   };

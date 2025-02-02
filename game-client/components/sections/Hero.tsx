@@ -35,7 +35,7 @@ const Hero: FC = () => {
             className="text-6xl md:text-8xl font-bold"
           >
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#d4a373] via-[#ccd5ae] to-[#e9edc9]">
-              EyeRealm
+              Aura Land
             </span>
           </motion.h1>
           
@@ -45,7 +45,7 @@ const Hero: FC = () => {
             transition={{ duration: 0.5, delay: 0.4 }}
             className="text-xl md:text-2xl text-[#ccd5ae] max-w-2xl mx-auto leading-relaxed"
           >
-            Where a thousand eyes watch your every move. Enter the realm of eternal vigilance.
+            Chainless Conquests: Where NFTs Battle Across Realms, Rarity Reigns, and Legends are SoulBound.
           </motion.p>
 
           <motion.div 

@@ -17,31 +17,31 @@ const characters: Character[] = [
   {
     id: '1',
     name: 'Warrior',
-    image: '/characters/warrior.png',
+    image: '/assets/warrior.jpeg',
     description: 'A powerful melee fighter with high defense',
   },
   {
     id: '2',
     name: 'Mage',
-    image: '/characters/mage.png',
+    image: '/assets/mage.jpeg',
     description: 'A master of arcane arts with powerful spells',
   },
   {
     id: '3',
     name: 'Rogue',
-    image: '/characters/rogue.png',
+    image: '/assets/rogue.jpeg',
     description: 'A swift and stealthy assassin',
   },
   {
     id: '4',
     name: 'Archer',
-    image: '/characters/archer.png',
+    image: '/assets/archer.jpeg',
     description: 'A precise ranged fighter with deadly accuracy',
   },
   {
     id: '5',
     name: 'Paladin',
-    image: '/characters/paladin.png',
+    image: '/assets/paladin.jpeg',
     description: 'A holy warrior with healing abilities',
   },
 ];
